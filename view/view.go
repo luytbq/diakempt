@@ -65,8 +65,28 @@ type Wire struct {
 // Build reads a page into a view.
 func Build(p *doc.Page) *View {
 	v := &View{Page: p, byCell: map[string]*Node{}}
+	// Compound shapes (a UML class, an ER table) draw their rows as child
+	// cells; the whole is one node and the rows are part of it.
+	inCompound := map[string]*doc.Cell{}
+	for _, c := range p.Cells {
+		if c.IsVertex() && isCompound(c) {
+			var mark func(id string)
+			mark = func(id string) {
+				for _, ch := range p.Children(id) {
+					if _, seen := inCompound[ch.ID]; !seen {
+						inCompound[ch.ID] = c
+						mark(ch.ID)
+					}
+				}
+			}
+			mark(c.ID)
+		}
+	}
 	var shapes []*doc.Cell
 	for _, c := range p.Cells {
+		if _, ok := inCompound[c.ID]; ok {
+			continue
+		}
 		if c.IsVertex() && !c.RelativeGeometry() && !isGroup(c) && !c.AbsBounds().Empty() {
 			shapes = append(shapes, c)
 		}
@@ -107,6 +127,13 @@ func Build(p *doc.Page) *View {
 		n := nodes[c.ID]
 		v.Nodes = append(v.Nodes, n)
 		v.byCell[c.ID] = n
+	}
+	for _, c := range p.Cells {
+		if host, ok := inCompound[c.ID]; ok {
+			if n := v.byCell[host.ID]; n != nil {
+				v.byCell[c.ID] = n
+			}
+		}
 	}
 	// Parents: the nearest container cell up the chain, seeing through groups.
 	for _, n := range v.Nodes {
@@ -161,7 +188,28 @@ func isTextOnly(st doc.Style) bool {
 	return st.Value("strokeColor", "") == "none" && st.Value("fillColor", "none") == "none"
 }
 
+// isCompound reports shapes that draw their parts as child cells: a UML class
+// (a swimlane stacking rows vertically) or an ER table.
+func isCompound(c *doc.Cell) bool {
+	st := c.Style()
+	switch {
+	case st.Shape() == "table":
+		return true
+	case st.Shape() == "swimlane" && st.Value("childLayout", "") == "stackLayout" && st.Value("horizontalStack", "1") == "0":
+		for _, ch := range c.Page.Children(c.ID) {
+			if ch.IsVertex() && ch.Style().Shape() == "swimlane" {
+				return false // a pool of stacked lanes, not a class
+			}
+		}
+		return true
+	}
+	return false
+}
+
 func isContainer(c *doc.Cell, st doc.Style) bool {
+	if isCompound(c) {
+		return false
+	}
 	if st.Shape() == "swimlane" || st.Shape() == "table" || st.Value("container", "0") == "1" || st.Value("swimlane", "") != "" {
 		return true
 	}
