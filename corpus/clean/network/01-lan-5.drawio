@@ -1,0 +1,49 @@
+<mxfile host="Electron" version="24.7.17">
+  <diagram id="lan-5" name="Office network">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="Core switch" style="shape=mxgraph.cisco.switches.layer_3_switch;html=1;pointerEvents=1;dashed=0;fillColor=#036897;strokeColor=#ffffff;strokeWidth=2;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="400" y="300" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="Internet" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="40" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="" style="endArrow=none;html=1;" edge="1" parent="1" source="c2" target="c1">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c4" value="PC-1" style="shape=mxgraph.cisco.computers_and_peripherals.pc;html=1;pointerEvents=1;dashed=0;fillColor=#036897;strokeColor=#ffffff;strokeWidth=2;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="620" y="390" width="78" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="" style="endArrow=none;html=1;" edge="1" parent="1" source="c1" target="c4">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c6" value="PC-2" style="shape=mxgraph.cisco.computers_and_peripherals.pc;html=1;pointerEvents=1;dashed=0;fillColor=#036897;strokeColor=#ffffff;strokeWidth=2;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="467.98" y="561.19" width="78" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value="" style="endArrow=none;html=1;" edge="1" parent="1" source="c1" target="c6">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c8" value="PC-3" style="shape=mxgraph.cisco.computers_and_peripherals.pc;html=1;pointerEvents=1;dashed=0;fillColor=#036897;strokeColor=#ffffff;strokeWidth=2;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="222.02" y="495.8" width="78" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" value="" style="endArrow=none;html=1;" edge="1" parent="1" source="c1" target="c8">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c10" value="PC-4" style="shape=mxgraph.cisco.computers_and_peripherals.pc;html=1;pointerEvents=1;dashed=0;fillColor=#036897;strokeColor=#ffffff;strokeWidth=2;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="222.02" y="284.2" width="78" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="c11" value="" style="endArrow=none;html=1;" edge="1" parent="1" source="c1" target="c10">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c12" value="PC-5" style="shape=mxgraph.cisco.computers_and_peripherals.pc;html=1;pointerEvents=1;dashed=0;fillColor=#036897;strokeColor=#ffffff;strokeWidth=2;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="467.98" y="218.81" width="78" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="c13" value="" style="endArrow=none;html=1;" edge="1" parent="1" source="c1" target="c12">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

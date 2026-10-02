@@ -41,8 +41,7 @@ level, applied, step_downs, operations, details, before, after. Metrics:
 wires_through_nodes, node_overlaps, label_overlaps, wire_crossings, wire_overlaps,
 area, wire_length, score.
 
-Today every field is filled except confidence and signals, which stay empty
-until kinds are detected, and normalized, which stays empty until the
+Today every field is filled except normalized, which stays empty until the
 aggressive level exists.
 
 ## Exit codes
@@ -66,8 +65,7 @@ aggressive level exists.
 These flags are accepted and validated. Implemented today: snap and the safe
 operations (separate, containers, reroute, labels). The normal and aggressive
 operations do not change the output yet, so --level normal and --level
-aggressive currently behave like safe. Every diagram is treated as unknown;
---type is recorded in the report but selects no optimizer yet.
+aggressive currently behave like safe.
 
 ### snap (all levels)
 
@@ -99,8 +97,9 @@ Operations, by the lowest level that runs them:
 ### Diagrams and decoration
 
 Each page is split into diagrams: groups of shapes joined by wires or by sitting
-in the same top-level container. A free text within 40px of a wired shape joins
-its diagram. Everything else (lone shapes, titles, legends, wires attached to
+in the same top-level container. A free wire end within 4px of another wire or
+of a shape joins it, so arrows drawn between dashed lifelines belong to their
+sequence diagram. A free text within 40px of a wired shape joins its diagram. Everything else (lone shapes, titles, legends, wires attached to
 nothing) is decoration and is never changed. Each diagram is reported with an
 identifier such as Page-1 #2 "Login": page, index in reading order, and the top
 container's title or the first shape's text.
@@ -164,7 +163,30 @@ Each setting is a flag taking a number in its range.
 
 ## Detected kinds
 
-None yet.
+Each diagram is scored as flowchart, swimlane and sequence by rules, never by
+learning, so the report can say why (--verbose lists the signals):
+
+- flowchart: three or more shapes, mostly one-way arrows going the same
+  direction, decision diamonds or start and end shapes, a clear start and end,
+  no lanes;
+- swimlane: the same, inside swimlane containers (a pool with lanes, or
+  swimlanes side by side as bands);
+- sequence: two or more lifelines (the UML lifeline shape, or dashed vertical
+  lines without arrowheads) with horizontal messages between them.
+
+Shapes or arrows of other notations (UML classes, ER tables and relations,
+state machine start and end states, network and cloud icons, mind map links,
+UML associations and inheritance) and containers that are not lanes push the
+flow scores down.
+
+A kind is assigned only with high confidence: a score of at least 0.8 and 0.25
+ahead of the next kind. Otherwise the diagram is unknown, reported with medium
+or low confidence and, at medium, the kind it came closest to. Diagrams too
+small to judge (fewer than three shapes or two directed wires) are unknown.
+
+Today the kind is reported only: every kind, including flowchart, swimlane
+and sequence, gets the general operations. --type overrides the reported
+kind.
 
 ## Input formats
 

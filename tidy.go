@@ -3,6 +3,7 @@ package diakempt
 import (
 	"fmt"
 
+	"github.com/luytbq/diakempt/detect"
 	"github.com/luytbq/diakempt/doc"
 	"github.com/luytbq/diakempt/report"
 	"github.com/luytbq/diakempt/segment"
@@ -66,13 +67,14 @@ func Tidy(data []byte, opt Options) (Result, error) {
 // with the kept result.
 func tidyDiagram(sd *segment.Diagram, tm *text.Measure, lv Level, opt Options) (report.Diagram, bool) {
 	w := tidy.New(sd, tm)
-	kind, forced := "unknown", false
-	if opt.Kind != "" {
-		kind, forced = opt.Kind, true
-	}
+	det := detect.Detect(sd)
 	dr := report.Diagram{
 		ID: sd.ID(), Page: sd.Page, Index: sd.Index, Name: sd.Name,
-		Kind: kind, Forced: forced, Level: string(lv), Applied: "none",
+		Kind: det.Kind, Confidence: det.Confidence, Signals: det.Signals,
+		Level: string(lv), Applied: "none",
+	}
+	if opt.Kind != "" {
+		dr.Kind, dr.Forced, dr.Confidence = opt.Kind, true, ""
 	}
 	orig := w.Save()
 	dr.Before = w.Measure()

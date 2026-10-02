@@ -60,13 +60,24 @@ type Page struct {
 // count as that node's note.
 const AttachDistance = 40
 
-// Split segments a view.
+// contactDistance is how close, in pixels, a free wire end must be to another
+// wire or to a shape outline to count as touching it.
+const contactDistance = 4
+
+// Split segments a view. Nodes and wires are grouped together: an attached wire
+// joins its nodes, a free wire end touching another wire or a shape joins that,
+// and nodes in one top-level container belong together.
 func Split(v *view.View) Page {
+	nn := len(v.Nodes)
 	idx := map[*view.Node]int{}
 	for i, n := range v.Nodes {
 		idx[n] = i
 	}
-	uf := newUnion(len(v.Nodes))
+	widx := map[*view.Wire]int{}
+	for i, w := range v.Wires {
+		widx[w] = nn + i
+	}
+	uf := newUnion(nn + len(v.Wires))
 	for _, n := range v.Nodes {
 		if top := topContainer(n); top != n {
 			uf.join(idx[n], idx[top])
@@ -74,14 +85,35 @@ func Split(v *view.View) Page {
 	}
 	wired := map[*view.Node]bool{}
 	for _, w := range v.Wires {
-		if w.Src != nil {
-			wired[w.Src] = true
+		for _, n := range []*view.Node{w.Src, w.Dst} {
+			if n != nil {
+				wired[n] = true
+				uf.join(widx[w], idx[n])
+			}
 		}
-		if w.Dst != nil {
-			wired[w.Dst] = true
-		}
-		if w.Src != nil && w.Dst != nil {
-			uf.join(idx[w.Src], idx[w.Dst])
+	}
+	// Free wire ends touching another wire or a shape, as in hand-drawn
+	// sequence diagrams where arrows run between dashed lines.
+	for _, w := range v.Wires {
+		for _, source := range []bool{true, false} {
+			if (source && w.Src != nil) || (!source && w.Dst != nil) {
+				continue
+			}
+			pt, ok := w.End(source)
+			if !ok {
+				continue
+			}
+			for _, o := range v.Wires {
+				if o != w && nearPath(o.Path, pt) {
+					uf.join(widx[w], widx[o])
+				}
+			}
+			for _, n := range v.Nodes {
+				if !n.Container && n.Box.Inset(-contactDistance).Contains(pt) {
+					uf.join(widx[w], idx[n])
+					wired[n] = true
+				}
+			}
 		}
 	}
 	// Free texts join the nearest wired node within reach.
@@ -103,46 +135,45 @@ func Split(v *view.View) Page {
 			uf.join(idx[n], idx[best])
 		}
 	}
-	groups := map[int][]*view.Node{}
-	for _, n := range v.Nodes {
-		r := uf.find(idx[n])
-		groups[r] = append(groups[r], n)
+	type group struct {
+		nodes []*view.Node
+		wires []*view.Wire
 	}
-	var out Page
-	byRoot := map[int]*Diagram{}
+	groups := map[int]*group{}
+	get := func(r int) *group {
+		if groups[r] == nil {
+			groups[r] = &group{}
+		}
+		return groups[r]
+	}
+	for _, n := range v.Nodes {
+		g := get(uf.find(idx[n]))
+		g.nodes = append(g.nodes, n)
+	}
+	for _, w := range v.Wires {
+		g := get(uf.find(widx[w]))
+		g.wires = append(g.wires, w)
+	}
 	roots := make([]int, 0, len(groups))
 	for r := range groups {
 		roots = append(roots, r)
 	}
 	sort.Ints(roots)
+	var out Page
 	for _, r := range roots {
-		nodes := groups[r]
-		hasWire := false
+		g := groups[r]
 		hasContainer := false
-		for _, n := range nodes {
-			hasWire = hasWire || wired[n]
-			hasContainer = hasContainer || n.Container
+		for _, n := range g.nodes {
+			hasContainer = hasContainer || (n.Container && len(n.Children) > 0)
 		}
-		if !hasWire && !hasContainer {
-			out.Decoration = append(out.Decoration, nodes...)
+		// A diagram has wires and something they connect, or a container
+		// holding shapes. Anything smaller is decoration.
+		if !(len(g.wires) > 0 && len(g.nodes)+len(g.wires) >= 2 && len(g.nodes) > 0) && !hasContainer {
+			out.Decoration = append(out.Decoration, g.nodes...)
+			out.LooseWires = append(out.LooseWires, g.wires...)
 			continue
 		}
-		d := &Diagram{Page: v.Page.Index, Nodes: nodes}
-		byRoot[r] = d
-		out.Diagrams = append(out.Diagrams, d)
-	}
-	for _, w := range v.Wires {
-		n := w.Src
-		if n == nil {
-			n = w.Dst
-		}
-		if n == nil {
-			out.LooseWires = append(out.LooseWires, w)
-			continue
-		}
-		if d := byRoot[uf.find(idx[n])]; d != nil {
-			d.Wires = append(d.Wires, w)
-		}
+		out.Diagrams = append(out.Diagrams, &Diagram{Page: v.Page.Index, Nodes: g.nodes, Wires: g.wires})
 	}
 	// Reading order: top to bottom in bands, then left to right.
 	sort.SliceStable(out.Diagrams, func(i, j int) bool {
@@ -159,6 +190,25 @@ func Split(v *view.View) Page {
 	}
 	sortNodes(out.Decoration, idx)
 	return out
+}
+
+func nearPath(pl geom.Polyline, p geom.Point) bool {
+	for _, s := range pl.Segments() {
+		if distToSegment(s, p) <= contactDistance {
+			return true
+		}
+	}
+	return false
+}
+
+func distToSegment(s geom.Segment, p geom.Point) float64 {
+	dx, dy := s.B.X-s.A.X, s.B.Y-s.A.Y
+	l2 := dx*dx + dy*dy
+	if l2 == 0 {
+		return p.Dist(s.A)
+	}
+	t := math.Max(0, math.Min(1, ((p.X-s.A.X)*dx+(p.Y-s.A.Y)*dy)/l2))
+	return p.Dist(geom.Point{X: s.A.X + t*dx, Y: s.A.Y + t*dy})
 }
 
 func sortNodes(ns []*view.Node, idx map[*view.Node]int) {
