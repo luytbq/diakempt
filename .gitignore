@@ -3,3 +3,5 @@
 *.bak.*
 # Real user files for running the invariants locally; never committed.
 /local/
+# Before and after files written by TestShowcase, for viewing in draw.io.
+/showcase/
