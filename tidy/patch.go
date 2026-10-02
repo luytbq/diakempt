@@ -61,6 +61,24 @@ func (d *Diagram) Patch() {
 			c.SetAbsBounds(t)
 		}
 	}
+	for _, n := range d.Nodes {
+		if len(n.SetStyle) == 0 {
+			continue
+		}
+		c := n.V.Cells[0]
+		st := c.Style()
+		keys := make([]string, 0, len(n.SetStyle))
+		for k := range n.SetStyle {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			st.Set(k, n.SetStyle[k])
+		}
+		if st.String() != c.Style().String() {
+			c.SetStyle(st)
+		}
+	}
 	// Wire points are stored relative to the wire's parent, which may have moved
 	// even when the wire did not, so they are compared in page coordinates
 	// after the shapes are written.
@@ -127,7 +145,9 @@ func isGroupCell(c *doc.Cell) bool {
 	return st.Shape() == "group"
 }
 
+// near compares boxes at a tolerance above the 0.01px rounding of stored
+// coordinates, so sizes summed from rounded parts still compare equal.
 func near(a, b geom.Rect) bool {
-	const eps = 0.005
+	const eps = 0.02
 	return math.Abs(a.X-b.X) < eps && math.Abs(a.Y-b.Y) < eps && math.Abs(a.W-b.W) < eps && math.Abs(a.H-b.H) < eps
 }

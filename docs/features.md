@@ -62,8 +62,8 @@ aggressive level exists.
 | --force | keep results that score worse than the original |
 | --seed N | seed for randomized optimizers, default 1 |
 
-These flags are accepted and validated. Implemented today: snap and the safe
-operations (separate, containers, reroute, labels). The normal and aggressive
+These flags are accepted and validated. Implemented today: snap, flowlayout and
+the safe operations (separate, containers, reroute, labels). The normal and aggressive
 operations do not change the output yet, so --level normal and --level
 aggressive currently behave like safe.
 
@@ -90,9 +90,31 @@ wire, end, target and distance.
 
 Operations, by the lowest level that runs them:
 
-- safe: snap, separate, containers, reroute, labels
+- safe: snap, flowlayout, separate, containers, reroute, labels
 - normal: align, resize, samesize, spacing, compact, grid
 - aggressive: normalize, relayout
+
+### flowlayout (all levels)
+
+A diagram detected (or forced) as a flowchart or swimlane is laid out from
+scratch by the layout engine copied from flowcast, at every level. The diagram
+is written as a Flow Table: shapes become elements (diamonds with two or more
+outgoing wires are conditions; ellipses are starts, ends or externals; cylinders
+are data; others are tasks), wires become edges, swimlanes become lanes, shapes
+with no wire attach to the nearest wired shape. The current drawing supplies
+the direction (lanes as columns or rows, else the way most wires go), the lane
+order, the main branch (the target most in line with its source) and the back
+edges (a depth-first walk in reading order).
+
+The result keeps the diagram's top-left corner, the shapes' styles and text,
+and gives every wire right-angle waypoints through fixed ports. Shapes with
+HTML labels get whiteSpace=wrap so text wraps inside the computed size.
+
+Diagrams the engine cannot represent fall back to the general operations, with
+the reason in the report: a wire with a free end or ending on a container, a
+wire looping to its own shape, containers that are not lanes or their pool, a
+shape outside every lane, or a table that does not validate. A result that
+scores worse than the original also falls back.
 
 ### Diagrams and decoration
 
@@ -184,9 +206,10 @@ ahead of the next kind. Otherwise the diagram is unknown, reported with medium
 or low confidence and, at medium, the kind it came closest to. Diagrams too
 small to judge (fewer than three shapes or two directed wires) are unknown.
 
-Today the kind is reported only: every kind, including flowchart, swimlane
-and sequence, gets the general operations. --type overrides the reported
-kind.
+Flowcharts and swimlanes are laid out from scratch (see flowlayout below);
+sequence and unknown diagrams get the general operations. --type overrides the
+detected kind, so --type flowchart or --type swimlane forces a relayout attempt
+and --type unknown prevents one.
 
 ## Input formats
 

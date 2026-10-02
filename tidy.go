@@ -5,6 +5,8 @@ import (
 
 	"github.com/luytbq/diakempt/detect"
 	"github.com/luytbq/diakempt/doc"
+	"github.com/luytbq/diakempt/engine/layout"
+	"github.com/luytbq/diakempt/relayout"
 	"github.com/luytbq/diakempt/report"
 	"github.com/luytbq/diakempt/segment"
 	"github.com/luytbq/diakempt/snap"
@@ -79,6 +81,35 @@ func tidyDiagram(sd *segment.Diagram, tm *text.Measure, lv Level, opt Options) (
 	orig := w.Save()
 	dr.Before = w.Measure()
 	dr.After = dr.Before
+	if (dr.Kind == detect.Flowchart || dr.Kind == detect.Swimlane) && opt.enabled("flowlayout", lv) {
+		reason := ""
+		plan, err := relayout.Build(sd, dr.Kind == detect.Swimlane)
+		if err == nil {
+			var r layout.Result
+			if r, err = plan.Lay(tm); err == nil {
+				plan.Apply(w, r, sd)
+			}
+		}
+		if err != nil {
+			reason = "flowlayout not possible: " + err.Error()
+		} else if after := w.Measure(); after.Score > dr.Before.Score+1e-9 && !opt.Force {
+			reason = fmt.Sprintf("flowlayout scored %.1f against %.1f before", after.Score, dr.Before.Score)
+		} else {
+			log := &tidy.Log{}
+			log.Counts = map[string]int{"flowlayout": 1}
+			dr.Applied = string(lv)
+			dr.After = after
+			dr.Operations = log.Ops(opNames())
+			dr.Details = []report.Detail{{Op: "flowlayout", Msg: fmt.Sprintf("laid out as a %s, direction %s", dr.Kind, plan.Dir)}}
+			if w.Changed() {
+				w.Patch()
+				return dr, true
+			}
+			return dr, false
+		}
+		dr.StepDowns = append(dr.StepDowns, reason)
+		w.Restore(orig)
+	}
 	for rank := lv.rank(); rank >= 0; rank-- {
 		at := Levels[rank]
 		w.Restore(orig)

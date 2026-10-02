@@ -31,6 +31,9 @@ type Node struct {
 	Children  []*Node
 	Container bool
 	Text      bool
+	// SetStyle holds style keys to write on the node's cell, for the few
+	// non-geometry keys a relayout needs, such as text wrapping.
+	SetStyle map[string]string
 }
 
 // Wire is a wire's working geometry.
@@ -205,6 +208,27 @@ func pointAlong(pl geom.Polyline, t float64) geom.Point {
 	return pl[len(pl)-1]
 }
 
+// NodeFor returns the working node of a view node, or nil.
+func (d *Diagram) NodeFor(v *view.Node) *Node { return d.byV[v] }
+
+// WireFor returns the working wire of a view wire, or nil.
+func (d *Diagram) WireFor(v *view.Wire) *Wire {
+	for _, w := range d.Wires {
+		if w.V == v {
+			return w
+		}
+	}
+	return nil
+}
+
+// PlaceLabel sets where the wire's first label sits: pos along the wire from -1
+// (source) to 1 (target), and an extra shift in pixels.
+func (w *Wire) PlaceLabel(pos float64, offset geom.Point) {
+	if len(w.labels) > 0 {
+		w.labels[0].pos, w.labels[0].offset = pos, offset
+	}
+}
+
 // Leaves returns the nodes that are not containers.
 func (d *Diagram) Leaves() []*Node {
 	var out []*Node
@@ -262,7 +286,7 @@ func (d *Diagram) Move(n *Node, by geom.Point) {
 // Changed reports whether the working copy differs from what was read.
 func (d *Diagram) Changed() bool {
 	for _, n := range d.Nodes {
-		if n.Box != n.Orig {
+		if !near(rounded(n.Box), n.Orig) || len(n.SetStyle) > 0 {
 			return true
 		}
 	}
@@ -274,16 +298,42 @@ func (d *Diagram) Changed() bool {
 	return false
 }
 
+// changed compares at the precision coordinates are stored with, so a value
+// that rounds to what the file holds is no change.
 func (w *Wire) changed() bool {
-	if w.Style.String() != w.origStyle || !samePoints(w.Points, w.origPoints) {
+	if w.Style.String() != w.origStyle || !nearPoints(roundedPoints(w.Points), w.origPoints) {
 		return true
 	}
 	for i := range w.labels {
-		if w.labels[i] != w.origLabels[i] {
+		a, b := w.labels[i], w.origLabels[i]
+		if math.Abs(round2(a.pos)-b.pos) > 0.005 || roundPt(a.offset).Dist(b.offset) > 0.005 {
 			return true
 		}
 	}
-	return !samePtr(w.SrcPoint, w.origSrc) || !samePtr(w.DstPoint, w.origDst)
+	return !nearPtr(w.SrcPoint, w.origSrc) || !nearPtr(w.DstPoint, w.origDst)
+}
+
+func round2(v float64) float64 { return math.Round(v*100) / 100 }
+
+func roundPt(p geom.Point) geom.Point { return geom.Point{X: round2(p.X), Y: round2(p.Y)} }
+
+func rounded(r geom.Rect) geom.Rect {
+	return geom.Rect{X: round2(r.X), Y: round2(r.Y), W: round2(r.W), H: round2(r.H)}
+}
+
+func roundedPoints(ps []geom.Point) []geom.Point {
+	out := make([]geom.Point, len(ps))
+	for i, p := range ps {
+		out[i] = roundPt(p)
+	}
+	return out
+}
+
+func nearPtr(a, b *geom.Point) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return roundPt(*a).Dist(*b) <= 0.005
 }
 
 func samePoints(a, b []geom.Point) bool {
@@ -307,13 +357,14 @@ func samePtr(a, b *geom.Point) bool {
 
 // Snapshot is a saved copy of the working geometry.
 type Snapshot struct {
-	boxes  []geom.Rect
-	points [][]geom.Point
-	src    []*geom.Point
-	dst    []*geom.Point
-	styles []doc.Style
-	routed []bool
-	labels [][]label
+	boxes   []geom.Rect
+	points  [][]geom.Point
+	src     []*geom.Point
+	dst     []*geom.Point
+	styles  []doc.Style
+	routed  []bool
+	labels  [][]label
+	styles2 []map[string]string
 }
 
 // Save copies the working geometry.
@@ -321,6 +372,7 @@ func (d *Diagram) Save() Snapshot {
 	var s Snapshot
 	for _, n := range d.Nodes {
 		s.boxes = append(s.boxes, n.Box)
+		s.styles2 = append(s.styles2, copyMap(n.SetStyle))
 	}
 	for _, w := range d.Wires {
 		s.points = append(s.points, append([]geom.Point(nil), w.Points...))
@@ -337,6 +389,7 @@ func (d *Diagram) Save() Snapshot {
 func (d *Diagram) Restore(s Snapshot) {
 	for i, n := range d.Nodes {
 		n.Box = s.boxes[i]
+		n.SetStyle = copyMap(s.styles2[i])
 	}
 	for i, w := range d.Wires {
 		w.Points = append([]geom.Point(nil), s.points[i]...)
@@ -353,4 +406,15 @@ func copyPt(p *geom.Point) *geom.Point {
 	}
 	q := *p
 	return &q
+}
+
+func copyMap(m map[string]string) map[string]string {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
 }

@@ -100,7 +100,7 @@ func TestOnlyGeometryChanges(t *testing.T) {
 }
 
 // geometryKeys are the style keys an operation may write.
-var geometryKeys = []string{"exitX", "exitY", "exitDx", "exitDy", "entryX", "entryY", "entryDx", "entryDy"}
+var geometryKeys = []string{"exitX", "exitY", "exitDx", "exitDy", "exitPerimeter", "entryX", "entryY", "entryDx", "entryDy", "entryPerimeter", "whiteSpace"}
 
 func skeleton(t *testing.T, data []byte, snapped map[string]bool) string {
 	t.Helper()

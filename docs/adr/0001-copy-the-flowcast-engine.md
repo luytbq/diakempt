@@ -30,10 +30,11 @@ Options considered:
 Copy the engine into diakempt and change it freely: a typed input of nodes, wires
 and lanes; a fixed size per element; a font scale per element.
 
-The copy is made at build step 7 of docs/design.md. The flowcast commit it is
-taken from is recorded here at that time.
+The packages layout, schema, model, num, validate and internal/unistr live in
+engine/, and text and data at the top level, copied at build steps 5 and 7 of
+docs/design.md.
 
-- Source commit: not copied yet.
+- Source commit: flowcast 46e5239458d21022848a93c4721c29e68bf1f8e7.
 
 ## Consequences
 
@@ -41,8 +42,9 @@ taken from is recorded here at that time.
 - The two engines drift apart. A fix made in flowcast after the source commit is
   not in diakempt until someone carries it over by hand; the source commit above
   is the starting point for finding such fixes.
-- Right after the copy, tidying a flowcast-generated file gives the same geometry
-  as building it from its table. That check is a starting test and is expected to
-  stop holding as the engine changes.
+- Right after the copy, 84 of 101 flowcast-generated diagrams relay out to
+  exactly the geometry flowcast drew. The rest differ because the table's branch
+  order cannot always be recovered from the drawing. The test is a starting
+  point and is expected to drift as the engine changes.
 - Whether flowcast keeps developing, freezes, or is replaced by diakempt is not
   decided here.

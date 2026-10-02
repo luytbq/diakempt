@@ -42,6 +42,7 @@ type Operation struct {
 // Operations lists every operation in the order it runs.
 var Operations = []Operation{
 	{"snap", Safe, "attach wire ends dropped next to a shape"},
+	{"flowlayout", Safe, "lay recognized flowcharts and swimlanes out from scratch with the layout engine"},
 	{"separate", Safe, "push overlapping nodes apart"},
 	{"containers", Safe, "grow containers to fit their children"},
 	{"reroute", Safe, "reroute wires that cross a node or run on top of another wire"},
