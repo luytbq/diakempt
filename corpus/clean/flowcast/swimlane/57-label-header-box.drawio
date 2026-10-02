@@ -1,0 +1,72 @@
+<mxfile host="flowtable2drawio">
+  <diagram id="flowtable" name="Labels avoid the pool header area">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="698.69" pageHeight="423" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="pool" value="Labels avoid the pool header area" vertex="1" parent="1" style="swimlane;html=1;childLayout=stackLayout;horizontalStack=1;resizeParent=1;resizeParentMax=0;startSize=30;collapsible=0;fontStyle=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="40" y="40" width="618.69" height="343" as="geometry" />
+        </mxCell>
+        <mxCell id="C" value="Lane C" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="0" y="30" width="390.7" height="313" as="geometry" />
+        </mxCell>
+        <mxCell id="D" value="Long business processing dept D" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="390.7" y="30" width="227.99" height="313" as="geometry" />
+        </mxCell>
+        <mxCell id="C-1" value="C-1 x" vertex="1" parent="C" style="ellipse;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="46" y="60" width="80" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="C-2" value="C-2 x" vertex="1" parent="C" style="rounded=0;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="24" y="134" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="C-3" value="C-3 x" vertex="1" parent="C" style="rounded=0;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="24" y="233" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="E1" value="ok" edge="1" parent="pool" source="C-1" target="C-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="-0.95">
+            <Array as="points">
+              <mxPoint x="351.7" y="112" />
+              <mxPoint x="351.7" y="251" />
+              <mxPoint x="84" y="251" />
+            </Array>
+            <mxPoint x="0" y="-11.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E3" value="send request" edge="1" parent="pool" source="C-2" target="C-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="-0.41">
+            <mxPoint x="48.08" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E4" value="" edge="1" parent="pool" source="C-2" target="C-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=1;exitY=0.67;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="351.7" y="197.33" />
+              <mxPoint x="351.7" y="251" />
+              <mxPoint x="84" y="251" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E5" value="return result with error detail" edge="1" parent="pool" source="C-2" target="C-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=1;exitY=0.33;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="-0.68">
+            <Array as="points">
+              <mxPoint x="363.7" y="180.67" />
+              <mxPoint x="363.7" y="72" />
+              <mxPoint x="86" y="72" />
+            </Array>
+            <mxPoint x="0" y="-11.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E6" value="No" edge="1" parent="pool" source="C-3" target="C-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="-0.95">
+            <Array as="points">
+              <mxPoint x="375.7" y="288" />
+              <mxPoint x="375.7" y="146" />
+              <mxPoint x="84" y="146" />
+            </Array>
+            <mxPoint x="0" y="-11.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,33 @@
+<mxfile host="flowtable2drawio">
+  <diagram id="flowtable" name="Two label candidates of equal cost: the first one wins">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="651.81" pageHeight="318" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="pool" value="Two label candidates of equal cost: the first one wins" vertex="1" parent="1" style="swimlane;html=1;childLayout=stackLayout;horizontalStack=1;resizeParent=1;resizeParentMax=0;startSize=30;collapsible=0;fontStyle=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="40" y="40" width="571.81" height="238" as="geometry" />
+        </mxCell>
+        <mxCell id="A" value="Long business processing dept A" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="0" y="30" width="226.95" height="208" as="geometry" />
+        </mxCell>
+        <mxCell id="B" value="Lane B" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="226.95" y="30" width="128" height="208" as="geometry" />
+        </mxCell>
+        <mxCell id="C" value="System C&lt;br&gt;payments&lt;br&gt;internal" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="354.95" y="30" width="216.86" height="208" as="geometry" />
+        </mxCell>
+        <mxCell id="B-1" value="B-1 x" vertex="1" parent="B" style="ellipse;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="24" y="60" width="80" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="B-2" value="B-2 x" vertex="1" parent="B" style="ellipse;html=1;dashed=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="24" y="134" width="80" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="E1" value="send request" edge="1" parent="pool" source="B-1" target="B-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="-0.03">
+            <mxPoint x="48.08" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,56 @@
+<mxfile host="flowtable2drawio">
+  <diagram id="flowtable" name="Branch depth ignores paths through a loop edge">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="418.98" pageHeight="514" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="A-1" value="Enter" vertex="1" parent="1" style="ellipse;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="84" y="70" width="80" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="A-2" value="Fork?" vertex="1" parent="1" style="rhombus;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="74" y="144" width="100" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="A-3" value="Retry" vertex="1" parent="1" style="rounded=0;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="228.98" y="149" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="A-5" value="Step one" vertex="1" parent="1" style="rounded=0;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="64" y="234" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="A-6" value="Step two" vertex="1" parent="1" style="rounded=0;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="64" y="314" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="A-7" value="Done" vertex="1" parent="1" style="shape=doubleEllipse;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="83" y="394" width="82" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="E1" value="" edge="1" parent="1" source="A-1" target="A-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="E2" value="short" edge="1" parent="1" source="A-2" target="A-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="-0.07">
+            <mxPoint x="0" y="-11.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E3" value="long" edge="1" parent="1" source="A-2" target="A-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="-0.03">
+            <mxPoint x="21.82" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E4" value="" edge="1" parent="1" source="A-3" target="A-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="363.98" y="174" />
+              <mxPoint x="363.98" y="126" />
+              <mxPoint x="124" y="126" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E5" value="" edge="1" parent="1" source="A-5" target="A-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="E6" value="" edge="1" parent="1" source="A-6" target="A-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

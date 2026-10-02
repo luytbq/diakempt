@@ -1,0 +1,57 @@
+<mxfile host="flowtable2drawio">
+  <diagram id="flowtable" name="A segment 12 pixels long already takes a label">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="691.66" pageHeight="441" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="pool" value="A segment 12 pixels long already takes a label" vertex="1" parent="1" style="swimlane;html=1;childLayout=stackLayout;horizontalStack=1;resizeParent=1;resizeParentMax=0;startSize=30;collapsible=0;fontStyle=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="40" y="40" width="611.66" height="361" as="geometry" />
+        </mxCell>
+        <mxCell id="A" value="System A&lt;br&gt;payments&lt;br&gt;internal" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="0" y="30" width="216.69" height="331" as="geometry" />
+        </mxCell>
+        <mxCell id="B" value="Long business processing dept B" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="216.69" y="30" width="226.97" height="331" as="geometry" />
+        </mxCell>
+        <mxCell id="C" value="Lane C&lt;br&gt;line two" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="443.66" y="30" width="168" height="331" as="geometry" />
+        </mxCell>
+        <mxCell id="A-1" value="A-1 x" vertex="1" parent="A" style="ellipse;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="51.95" y="63" width="80" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="C-2" value="C-2 x" vertex="1" parent="C" style="rounded=0;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="24" y="60" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="B-3" value="B-3 x" vertex="1" parent="B" style="shape=doubleEllipse;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="127.97" y="171" width="84" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="B-4" value="B-4 x" vertex="1" parent="B" style="rounded=0;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="91.97" y="251" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="E1" value="Yes" edge="1" parent="pool" source="A-1" target="C-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="-0.89">
+            <mxPoint x="0" y="-11.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E2" value="send request" edge="1" parent="pool" source="C-2" target="B-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=0.33;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="0.94">
+            <Array as="points">
+              <mxPoint x="507.66" y="263" />
+              <mxPoint x="368.66" y="263" />
+            </Array>
+            <mxPoint x="6.59" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E3" value="Yes" edge="1" parent="pool" source="C-2" target="B-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=0.67;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="-0.87">
+            <Array as="points">
+              <mxPoint x="547.66" y="189" />
+              <mxPoint x="386.66" y="189" />
+            </Array>
+            <mxPoint x="19.39" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,57 @@
+<mxfile host="flowtable2drawio">
+  <diagram id="flowtable" name="A note on a condition goes opposite its side branch, even when the input comes f">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="946.26" pageHeight="500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="pool" value="A note on a condition goes opposite its side branch, even when the input comes from the lane on that side" vertex="1" parent="1" style="swimlane;html=1;childLayout=stackLayout;horizontalStack=1;resizeParent=1;resizeParentMax=0;startSize=30;collapsible=0;fontStyle=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="40" y="40" width="866.26" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="A" value="Web" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="0" y="30" width="168" height="390" as="geometry" />
+        </mxCell>
+        <mxCell id="B" value="Service" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="168" y="30" width="698.26" height="390" as="geometry" />
+        </mxCell>
+        <mxCell id="A-1" value="Open the link" vertex="1" parent="A" style="rounded=0;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="33" y="60" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="B-1" value="Payment found?" vertex="1" parent="B" style="rhombus;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="298" y="140" width="174" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="B-1.1" value="Missing, wrong flow or a read error" vertex="1" parent="B" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=4;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="24" y="156" width="234" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="B-2" value="Not found page" vertex="1" parent="B" style="shape=doubleEllipse;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="506.26" y="145" width="168" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="B-3" value="Continue the payment" vertex="1" parent="B" style="rounded=0;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="301" y="230" width="168" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="B-4" value="Done" vertex="1" parent="B" style="shape=doubleEllipse;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="344" y="310" width="82" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="E1" value="" edge="1" parent="pool" source="A-1" target="B-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="553" y="115" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E2" value="No" edge="1" parent="pool" source="B-1" target="B-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="0.06">
+            <mxPoint x="0" y="-11.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E3" value="Yes" edge="1" parent="pool" source="B-1" target="B-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="-0.03">
+            <mxPoint x="19.39" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E4" value="" edge="1" parent="pool" source="B-3" target="B-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

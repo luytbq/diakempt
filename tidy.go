@@ -3,6 +3,8 @@ package diakempt
 import (
 	"github.com/luytbq/diakempt/doc"
 	"github.com/luytbq/diakempt/report"
+	"github.com/luytbq/diakempt/snap"
+	"github.com/luytbq/diakempt/view"
 )
 
 // Result is the outcome of tidying one file.
@@ -23,6 +25,24 @@ func Tidy(data []byte, opt Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	lv := opt.level()
 	rep := report.File{Pages: len(d.Pages), Issues: warns}
+	for _, p := range d.Pages {
+		if p.Empty() {
+			continue
+		}
+		if opt.enabled("snap", lv) {
+			r := snap.Run(view.Build(p), snap.Params{
+				Distance: opt.value("snap-distance"),
+				Ratio:    opt.value("snap-ratio"),
+				Margin:   opt.value("snap-margin"),
+			})
+			rep.Snap.Snapped += r.Snapped
+			rep.Snap.Ambiguous += r.Ambiguous
+			rep.Snap.Details = append(rep.Snap.Details, r.Details...)
+			rep.Issues = append(rep.Issues, r.Issues...)
+		}
+	}
+	rep.Changed = rep.Snap.Snapped > 0
 	return Result{Output: d.Bytes(), Report: rep}, nil
 }

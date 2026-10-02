@@ -1,0 +1,51 @@
+<mxfile host="flowtable2drawio">
+  <diagram id="flowtable" name="A db in the flow takes edges in and out, and can have a note attached">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="642.71" pageHeight="439" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="pool" value="A db in the flow takes edges in and out, and can have a note attached" vertex="1" parent="1" style="swimlane;html=1;childLayout=stackLayout;horizontalStack=1;resizeParent=1;resizeParentMax=0;startSize=30;collapsible=0;fontStyle=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="40" y="40" width="562.71" height="359" as="geometry" />
+        </mxCell>
+        <mxCell id="A" value="App" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="0" y="30" width="196.71" height="329" as="geometry" />
+        </mxCell>
+        <mxCell id="B" value="Storage" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="196.71" y="30" width="366" height="329" as="geometry" />
+        </mxCell>
+        <mxCell id="A-1" value="Request" vertex="1" parent="A" style="ellipse;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="39" y="68" width="94" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="B-1" value="ORDERS" vertex="1" parent="B" style="shape=cylinder3;html=1;boundedLbl=1;backgroundOutline=1;size=8;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="24" y="60" width="100" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="B-1.1" value="Written in one transaction" vertex="1" parent="B" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=4;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="164" y="76" width="178" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="A-2" value="Build the reply" vertex="1" parent="A" style="rounded=0;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="24" y="169" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="A-3" value="Done" vertex="1" parent="A" style="shape=doubleEllipse;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="43" y="249" width="82" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="E1" value="save" edge="1" parent="pool" source="A-1" target="B-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="-0.5">
+            <mxPoint x="0" y="-11.5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E2" value="read back" edge="1" parent="pool" source="B-1" target="A-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" x="-0.88">
+            <Array as="points">
+              <mxPoint x="270.71" y="187" />
+              <mxPoint x="84" y="187" />
+            </Array>
+            <mxPoint x="38.61" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E3" value="" edge="1" parent="pool" source="A-2" target="A-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

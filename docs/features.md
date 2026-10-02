@@ -41,8 +41,8 @@ level, applied, step_downs, operations, details, before, after. Metrics:
 wires_through_nodes, node_overlaps, label_overlaps, wire_crossings, wire_overlaps,
 area, wire_length, score.
 
-Today the report fills pages and issues; diagrams stay empty because no
-detection or optimization runs yet.
+Today the report fills pages, snap, issues and changed; diagrams stay empty
+because no detection or optimization runs yet.
 
 ## Exit codes
 
@@ -62,8 +62,29 @@ detection or optimization runs yet.
 | --force | keep results that score worse than the original |
 | --seed N | seed for randomized optimizers, default 1 |
 
-These flags are accepted and validated. No operation is implemented yet, so
-none of them changes the output.
+These flags are accepted and validated. Only snap is implemented so far; the
+other operations do not change the output yet.
+
+### snap (all levels)
+
+Attaches wire ends that were dropped next to a shape instead of on it:
+
+- an end inside a shape attaches to it (the smallest one when shapes nest);
+- an end outside a shape attaches when within min(--snap-distance, --snap-ratio
+  x the shape's shorter side) of its outline;
+- when the nearest candidate is not --snap-margin times closer than the next,
+  the end stays free and the report warns with snap.ambiguous;
+- a text box laid over a shape counts as that shape, and the wire attaches to
+  the shape underneath;
+- an end near a container's outline, with no shape nearby, attaches to the
+  innermost such container; an end in the middle of empty container space stays
+  free;
+- a wire is never snapped back onto the shape at its other end; a candidate that
+  would duplicate an existing wire loses ties;
+- ends with no stored position are left alone.
+
+The report counts snapped and ambiguous ends; --verbose lists each snap with its
+wire, end, target and distance.
 
 Operations, by the lowest level that runs them:
 

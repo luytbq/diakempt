@@ -58,10 +58,13 @@ Rules, for each unattached wire end:
    everything is decoration (an annotation arrow), not a graph edge.
 5. The end falls inside a container (pool, lane, group) rather than on a node in it:
    prefer the nearest leaf node within the threshold; attach to the container only
-   when no node qualifies.
+   when no node qualifies and the end lies within the threshold of the
+   container's outline. An end somewhere in the middle of empty lane space stays
+   free, since it is usually an annotation arrow.
 
-Among equal candidates, prefer the one that gives a more plausible graph: no
-self-loop, no duplicate of an existing wire.
+A snap never makes a wire loop back to the shape at its other end. Among equal
+candidates, prefer the one that does not duplicate an existing wire; duplicates
+are not ruled out, since parallel wires are legitimate.
 
 A snapped end is written to the output file at every level: it is a fix the user
 wants, not a layout choice.

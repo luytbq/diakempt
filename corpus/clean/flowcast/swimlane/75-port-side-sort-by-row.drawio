@@ -1,0 +1,46 @@
+<mxfile host="flowtable2drawio">
+  <diagram id="flowtable" name="Side ports are sorted by the target row">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="266" pageHeight="478" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="pool" value="Side ports are sorted by the target row" vertex="1" parent="1" style="swimlane;html=1;childLayout=stackLayout;horizontalStack=1;resizeParent=1;resizeParentMax=0;startSize=30;collapsible=0;fontStyle=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="40" y="40" width="186" height="398" as="geometry" />
+        </mxCell>
+        <mxCell id="A" value="Lane A" vertex="1" parent="pool" style="swimlane;html=1;startSize=30;collapsible=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="0" y="30" width="186" height="368" as="geometry" />
+        </mxCell>
+        <mxCell id="A-1" value="A-1 x" vertex="1" parent="A" style="ellipse;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="79" y="60" width="80" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="A-2" value="A-2 x" vertex="1" parent="A" style="rounded=0;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="27" y="134" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="A-3" value="A-3 x" vertex="1" parent="A" style="ellipse;html=1;dashed=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="44" y="214" width="80" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="A-4" value="A-4 x" vertex="1" parent="A" style="shape=doubleEllipse;html=1;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry x="87" y="288" width="84" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="E2" value="" edge="1" parent="pool" source="A-2" target="A-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=1;exitY=0.67;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="159" y="197.33" />
+              <mxPoint x="159" y="300" />
+              <mxPoint x="129" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E3" value="" edge="1" parent="pool" source="A-2" target="A-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;exitX=1;exitY=0.33;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;fontSize=12;flowtable=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="171" y="180.67" />
+              <mxPoint x="171" y="72" />
+              <mxPoint x="119" y="72" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
