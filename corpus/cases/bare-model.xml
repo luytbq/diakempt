@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- exported by another tool -->
+<mxGraphModel>
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="a" value="Line one&#xa;line two" style="text;html=0;" vertex="1" parent="1">
+      <mxGeometry x="10" y="10" width="100" height="40" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>

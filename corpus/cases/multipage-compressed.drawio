@@ -1,0 +1,48 @@
+<mxfile host="app.diagrams.net" compressed="true">
+  <diagram id="c1" name="Compressed">xVVNk5swDP013PnY0vTY0HR7aE859OzFWkxjECNESPrrK4IdoDTbbju7nWGC9CTZ8nvCCZKsOt2TaswX1GCDONSnIPkQxHEUhqG8BuQ8IqkHCiq1S5qAffkdfKVDu1JDu0hkRMtlswRzrGvIeYEpIuyXaY9ol7s2qoAVsM+VXaNfS81mRDfx2wn/BGVh/M5R+m6MVMonu5O0RmnsZ1CyC8L3wWAvnyQjRL4Z9knVKQM7kO15dPsE8cfn116PSVDzvy/XsiIe64/Kdo7L/YS2fPYMS6WIKc62NyXDvlH5EOllngQzXFnxIjEfS2sztEiXukS/gY2+E7xlwgPMIpv4IUlTibgOgBhON88ZPaXFz+e8B6yA6Sy+X9ET5Qb8zrn9bFocZGaD4tOUm8/iuvCfki45jvdny8OqPazUyQzkh0tNqqqB+vF36LFpCI8gASvdbx9IrGKw2AgYImmglayEXa1BO+1+I+2rCBUuhYqStVJXMedSpf9TKojWH4yWG8q5SGywwFrZ3YRuJ+5lze2U8xmxcYx/A+azu25Vx/grPYaNnlZD+sKOclh99WIVwMtp+wvpCKzi8rjs4iV1uOTcuH5d/eyPLtn9AA==</diagram>
+  <diagram id="c2" name="Plain">
+    <mxGraphModel>
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="layer2" value="Notes" parent="0" />
+        <mxCell id="pool" value="Pool" style="swimlane;horizontal=0;html=1;startSize=20;" vertex="1" parent="1">
+          <mxGeometry x="100" y="100" width="400" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="lane" value="Lane A" style="swimlane;horizontal=0;html=1;startSize=20;" vertex="1" parent="pool">
+          <mxGeometry x="20" width="380" height="200" as="geometry" />
+        </mxCell>
+        <UserObject label="Pay &lt;b&gt;now&lt;/b&gt;" owner="team-a" link="https://example.com" id="pay">
+          <mxCell style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="lane">
+            <mxGeometry x="40" y="60" width="100" height="40" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="grp" value="" style="group" vertex="1" connectable="0" parent="lane">
+          <mxGeometry x="200" y="50" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="box" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="grp">
+          <mxGeometry width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="boxtext" value="Ship" style="text;html=1;align=center;verticalAlign=middle;" vertex="1" parent="grp">
+          <mxGeometry x="30" y="25" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="w" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="lane" source="pay">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="170" y="80" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="160" y="80" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="wl" value="then" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="w">
+          <mxGeometry x="-0.2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note" value="Remember the refund path" style="shape=note;whiteSpace=wrap;html=1;" vertex="1" parent="layer2">
+          <mxGeometry x="540" y="120" width="120" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
