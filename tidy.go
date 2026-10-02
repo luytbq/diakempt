@@ -1,9 +1,14 @@
 package diakempt
 
 import (
+	"fmt"
+
 	"github.com/luytbq/diakempt/doc"
 	"github.com/luytbq/diakempt/report"
+	"github.com/luytbq/diakempt/segment"
 	"github.com/luytbq/diakempt/snap"
+	"github.com/luytbq/diakempt/text"
+	"github.com/luytbq/diakempt/tidy"
 	"github.com/luytbq/diakempt/view"
 )
 
@@ -27,6 +32,7 @@ func Tidy(data []byte, opt Options) (Result, error) {
 	}
 	lv := opt.level()
 	rep := report.File{Pages: len(d.Pages), Issues: warns}
+	tm := text.Default()
 	for _, p := range d.Pages {
 		if p.Empty() {
 			continue
@@ -42,7 +48,86 @@ func Tidy(data []byte, opt Options) (Result, error) {
 			rep.Snap.Details = append(rep.Snap.Details, r.Details...)
 			rep.Issues = append(rep.Issues, r.Issues...)
 		}
+		seg := segment.Split(view.Build(p))
+		rep.Decoration += len(seg.Decoration) + len(seg.LooseWires)
+		for _, sd := range seg.Diagrams {
+			dr, changed := tidyDiagram(sd, tm, lv, opt)
+			rep.Diagrams = append(rep.Diagrams, dr)
+			rep.Changed = rep.Changed || changed
+		}
 	}
-	rep.Changed = rep.Snap.Snapped > 0
+	rep.Changed = rep.Changed || rep.Snap.Snapped > 0
 	return Result{Output: d.Bytes(), Report: rep}, nil
+}
+
+// tidyDiagram optimizes one diagram at the requested level, stepping down a
+// level whenever the result scores worse than the original or breaks relative
+// order where the level must keep it (docs/adr/0004). It patches the document
+// with the kept result.
+func tidyDiagram(sd *segment.Diagram, tm *text.Measure, lv Level, opt Options) (report.Diagram, bool) {
+	w := tidy.New(sd, tm)
+	kind, forced := "unknown", false
+	if opt.Kind != "" {
+		kind, forced = opt.Kind, true
+	}
+	dr := report.Diagram{
+		ID: sd.ID(), Page: sd.Page, Index: sd.Index, Name: sd.Name,
+		Kind: kind, Forced: forced, Level: string(lv), Applied: "none",
+	}
+	orig := w.Save()
+	dr.Before = w.Measure()
+	dr.After = dr.Before
+	for rank := lv.rank(); rank >= 0; rank-- {
+		at := Levels[rank]
+		w.Restore(orig)
+		log := &tidy.Log{}
+		runLevel(w, at, opt, log)
+		after := w.Measure()
+		reason := ""
+		if at != Aggressive {
+			if err := w.OrderKept(); err != nil {
+				reason = fmt.Sprintf("%s broke relative order (%v)", at, err)
+			}
+		}
+		if reason == "" && after.Score > dr.Before.Score+1e-9 && !opt.Force {
+			reason = fmt.Sprintf("%s scored %.1f against %.1f before", at, after.Score, dr.Before.Score)
+		}
+		if reason != "" {
+			dr.StepDowns = append(dr.StepDowns, reason)
+			continue
+		}
+		dr.Applied = string(at)
+		dr.After = after
+		dr.Operations = log.Ops(opNames())
+		dr.Details = log.Details
+		if w.Changed() {
+			w.Patch()
+			return dr, true
+		}
+		return dr, false
+	}
+	w.Restore(orig)
+	return dr, false
+}
+
+// runLevel applies the general operations of one level.
+func runLevel(w *tidy.Diagram, at Level, opt Options, log *tidy.Log) {
+	on := func(op string) bool { return opt.enabled(op, at) }
+	if on("separate") || on("containers") {
+		w.Arrange(opt.value("min-gap"), on("separate"), on("containers"), log)
+	}
+	if on("reroute") {
+		w.Reroute(log)
+	}
+	if on("labels") {
+		w.Labels(log)
+	}
+}
+
+func opNames() []string {
+	out := make([]string, len(Operations))
+	for i, op := range Operations {
+		out[i] = op.Name
+	}
+	return out
 }

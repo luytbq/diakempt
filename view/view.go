@@ -52,6 +52,10 @@ type Wire struct {
 	SrcRef, DstRef string
 	// Path runs from the source end through the waypoints to the target end.
 	Path geom.Polyline
+	// Points are the stored waypoints; SrcPoint and DstPoint the positions of
+	// free ends, nil when unknown.
+	Points             []geom.Point
+	SrcPoint, DstPoint *geom.Point
 	// Labels are label cells placed on the wire, plus the wire's own value.
 	Labels []*doc.Cell
 	Text   string
@@ -199,61 +203,137 @@ func (w *Wire) End(source bool) (geom.Point, bool) {
 	return w.Path[len(w.Path)-1], true
 }
 
-// path approximates the line draw.io draws. Attached ends sit on the node
-// outline at the fixed port given by exitX/exitY or entryX/entryY, or where the
-// line toward the next point leaves the node. An orthogonal wire without
-// waypoints between offset nodes gets the elbows draw.io would add.
+// path approximates the line draw.io draws for a wire as stored.
 func (v *View) path(w *Wire) geom.Polyline {
-	pts := w.Cell.Points()
-	srcPt, srcOK := w.Cell.TerminalPoint(true)
-	dstPt, dstOK := w.Cell.TerminalPoint(false)
+	w.Points = w.Cell.Points()
+	if pt, ok := w.Cell.TerminalPoint(true); ok {
+		w.SrcPoint = &pt
+	}
+	if pt, ok := w.Cell.TerminalPoint(false); ok {
+		w.DstPoint = &pt
+	}
+	// A terminal naming a shape that is not a node, such as a group, is drawn
+	// at that shape's center.
 	if w.Src == nil && w.SrcRef != "" {
 		if c := v.Page.Cell(w.SrcRef); c != nil && c.IsVertex() {
-			srcPt, srcOK = c.AbsBounds().Center(), true
+			pt := c.AbsBounds().Center()
+			w.SrcPoint = &pt
 		}
 	}
 	if w.Dst == nil && w.DstRef != "" {
 		if c := v.Page.Cell(w.DstRef); c != nil && c.IsVertex() {
-			dstPt, dstOK = c.AbsBounds().Center(), true
+			pt := c.AbsBounds().Center()
+			w.DstPoint = &pt
 		}
 	}
-	// Aim each attached end at its neighbor point: the first or last waypoint,
-	// else the other end.
-	aimSrc, aimDst := dstPt, srcPt
-	if w.Dst != nil {
-		aimSrc = w.Dst.Box.Center()
-	}
+	e := Ends{SrcPoint: w.SrcPoint, DstPoint: w.DstPoint}
 	if w.Src != nil {
-		aimDst = w.Src.Box.Center()
+		e.Src = &w.Src.Box
+	}
+	if w.Dst != nil {
+		e.Dst = &w.Dst.Box
+	}
+	return Route(e, w.Points, w.Style)
+}
+
+// Ends describes what a wire is attached to: a box for an attached end, a
+// point for a free one.
+type Ends struct {
+	Src, Dst           *geom.Rect
+	SrcPoint, DstPoint *geom.Point
+}
+
+// IsOrthogonal reports whether draw.io draws the wire with right angles.
+func IsOrthogonal(st doc.Style) bool {
+	switch st.Value("edgeStyle", "") {
+	case "orthogonalEdgeStyle", "elbowEdgeStyle", "entityRelationEdgeStyle":
+		return true
+	}
+	return false
+}
+
+// Route approximates the line draw.io draws. Attached ends sit on the box
+// outline at the fixed port given by exitX/exitY or entryX/entryY, or where the
+// line toward the next point leaves the box. An orthogonal wire gets the elbows
+// draw.io would add between points that are not level.
+func Route(e Ends, pts []geom.Point, st doc.Style) geom.Polyline {
+	var srcPt, dstPt geom.Point
+	srcOK, dstOK := e.SrcPoint != nil, e.DstPoint != nil
+	if srcOK {
+		srcPt = *e.SrcPoint
+	}
+	if dstOK {
+		dstPt = *e.DstPoint
+	}
+	aimSrc, aimDst := dstPt, srcPt
+	if e.Dst != nil {
+		aimSrc = e.Dst.Center()
+	}
+	if e.Src != nil {
+		aimDst = e.Src.Center()
 	}
 	if len(pts) > 0 {
 		aimSrc, aimDst = pts[0], pts[len(pts)-1]
 	}
-	ortho := w.Style.Value("edgeStyle", "") == "orthogonalEdgeStyle" || w.Style.Value("edgeStyle", "") == "elbowEdgeStyle"
-	if w.Src != nil {
-		srcPt, srcOK = port(w.Src.Box, w.Style, "exit", aimSrc, ortho), true
+	ortho := IsOrthogonal(st)
+	if e.Src != nil {
+		srcPt, srcOK = port(*e.Src, st, "exit", aimSrc, ortho), true
 	}
-	if w.Dst != nil {
-		dstPt, dstOK = port(w.Dst.Box, w.Style, "entry", aimDst, ortho), true
+	if e.Dst != nil {
+		dstPt, dstOK = port(*e.Dst, st, "entry", aimDst, ortho), true
+	}
+	if !srcOK && len(pts) > 0 {
+		srcPt, srcOK = pts[0], true
+	}
+	if !dstOK && len(pts) > 0 {
+		dstPt, dstOK = pts[len(pts)-1], true
 	}
 	if !srcOK || !dstOK {
-		if !srcOK && len(pts) > 0 {
-			srcPt, srcOK = pts[0], true
-		}
-		if !dstOK && len(pts) > 0 {
-			dstPt, dstOK = pts[len(pts)-1], true
-		}
-		if !srcOK || !dstOK {
-			return nil
-		}
+		return nil
 	}
 	out := geom.Polyline{srcPt}
+	if ortho && e.Src != nil {
+		if j, ok := jetty(*e.Src, st, "exit", srcPt); ok {
+			out = append(out, j)
+		}
+	}
 	out = append(out, pts...)
+	if ortho && e.Dst != nil {
+		if j, ok := jetty(*e.Dst, st, "entry", dstPt); ok {
+			out = append(out, j)
+		}
+	}
 	out = append(out, dstPt)
 	if ortho {
 		out = orthogonalize(out)
 	}
 	return out
+}
+
+// jettyLength is how far draw.io runs an orthogonal wire straight out of a
+// fixed port before it may turn.
+const jettyLength = 10
+
+// jetty returns the point straight out of a fixed port on a box side, where an
+// orthogonal wire is free to turn.
+func jetty(box geom.Rect, st doc.Style, prefix string, port geom.Point) (geom.Point, bool) {
+	xs, okx := st.Get(prefix + "X")
+	ys, oky := st.Get(prefix + "Y")
+	if !okx || !oky {
+		return geom.Point{}, false
+	}
+	x, y := geom.ParseNumber(xs), geom.ParseNumber(ys)
+	switch {
+	case y == 0:
+		return geom.Point{X: port.X, Y: port.Y - jettyLength}, true
+	case y == 1:
+		return geom.Point{X: port.X, Y: port.Y + jettyLength}, true
+	case x == 0:
+		return geom.Point{X: port.X - jettyLength, Y: port.Y}, true
+	case x == 1:
+		return geom.Point{X: port.X + jettyLength, Y: port.Y}, true
+	}
+	return geom.Point{}, false
 }
 
 // port returns where a wire meets a node box.

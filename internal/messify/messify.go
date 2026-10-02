@@ -85,3 +85,47 @@ func push(b geom.Rect, pt geom.Point, dist float64) geom.Point {
 	}
 	return geom.Point{X: pt.X, Y: b.Bottom() + dist}
 }
+
+// Moved is the ground truth for one shape moved by Jitter.
+type Moved struct {
+	Page int
+	Cell string
+	By   geom.Point
+}
+
+// Jitter moves a share of the solid shapes by up to max pixels on each axis,
+// keeping each inside its container, as hand-placed shapes drift. Wire
+// waypoints stay where they were, so wires end up crossing shapes as they do
+// after careless edits.
+func Jitter(d *doc.Document, rng *rand.Rand, share, max float64) []Moved {
+	var out []Moved
+	for _, p := range d.Pages {
+		v := view.Build(p)
+		for _, n := range v.Leaves() {
+			if n.TextOnly || rng.Float64() >= share {
+				continue
+			}
+			by := geom.Point{X: math.Round((rng.Float64()*2 - 1) * max), Y: math.Round((rng.Float64()*2 - 1) * max)}
+			for _, c := range n.Cells {
+				c.SetAbsBounds(c.AbsBounds().Move(by))
+			}
+			out = append(out, Moved{Page: p.Index, Cell: n.ID, By: by})
+		}
+	}
+	return out
+}
+
+// Strip removes style keys that only flowcast writes, so messified flowcast
+// output does not give away where it came from.
+func Strip(d *doc.Document) {
+	for _, p := range d.Pages {
+		for _, c := range p.Cells {
+			st := c.Style()
+			if !st.Has("flowtable") {
+				continue
+			}
+			st.Del("flowtable")
+			c.SetStyle(st)
+		}
+	}
+}

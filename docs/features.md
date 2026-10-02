@@ -41,8 +41,9 @@ level, applied, step_downs, operations, details, before, after. Metrics:
 wires_through_nodes, node_overlaps, label_overlaps, wire_crossings, wire_overlaps,
 area, wire_length, score.
 
-Today the report fills pages, snap, issues and changed; diagrams stay empty
-because no detection or optimization runs yet.
+Today every field is filled except confidence and signals, which stay empty
+until kinds are detected, and normalized, which stays empty until the
+aggressive level exists.
 
 ## Exit codes
 
@@ -62,8 +63,11 @@ because no detection or optimization runs yet.
 | --force | keep results that score worse than the original |
 | --seed N | seed for randomized optimizers, default 1 |
 
-These flags are accepted and validated. Only snap is implemented so far; the
-other operations do not change the output yet.
+These flags are accepted and validated. Implemented today: snap and the safe
+operations (separate, containers, reroute, labels). The normal and aggressive
+operations do not change the output yet, so --level normal and --level
+aggressive currently behave like safe. Every diagram is treated as unknown;
+--type is recorded in the report but selects no optimizer yet.
 
 ### snap (all levels)
 
@@ -91,6 +95,59 @@ Operations, by the lowest level that runs them:
 - safe: snap, separate, containers, reroute, labels
 - normal: align, resize, samesize, spacing, compact, grid
 - aggressive: normalize, relayout
+
+### Diagrams and decoration
+
+Each page is split into diagrams: groups of shapes joined by wires or by sitting
+in the same top-level container. A free text within 40px of a wired shape joins
+its diagram. Everything else (lone shapes, titles, legends, wires attached to
+nothing) is decoration and is never changed. Each diagram is reported with an
+identifier such as Page-1 #2 "Login": page, index in reading order, and the top
+container's title or the first shape's text.
+
+### separate (safe)
+
+Pushes overlapping shapes in the same container apart until they are --min-gap
+apart, along the axis that needs the smaller push. Space is opened by moving
+everything at or past the pushed shape on that axis, so no two shapes swap
+sides. A shape drawn entirely inside another (a badge on a box) is left alone.
+
+### containers (safe)
+
+A container that a shape sticks out of grows to hold it, with 10px padding
+around shapes and none around lanes. Containers whose children fit are left as
+drawn. Lanes of a stacked pool (childLayout=stackLayout) are laid edge to edge
+again and stretched to a common height (or width) without moving their
+contents across the stack.
+
+### reroute (safe)
+
+A wire that crosses a shape, runs through its own end shape, or runs on top of
+another wire gets a new route, kept only if the diagram scores better:
+
+- orthogonal wires get right-angle waypoints through fixed ports (exitX/exitY,
+  entryX/entryY), chosen over every pair of side ports, avoiding shapes by
+  10px, charging bends, crossings and ports another wire already uses;
+- straight and curved wires keep their style and get waypoints around the
+  shapes in the way.
+
+Passes repeat until no wire changes.
+
+### labels (safe)
+
+A free text that overlaps a shape or another label moves to the nearest clear
+spot within 60px. A wire label that overlaps something slides along its wire to
+the clear position nearest where it was.
+
+### Score and stepping down
+
+Each diagram is scored before and after: wires through shapes and overlapping
+shapes (including a shape sticking out of its container) weigh 100, overlapping
+labels 20, wires on top of wires 10, crossings 5, plus small weights for area
+and wire length. If the result scores worse than the original, or swaps two
+shapes' sides at safe or normal, the diagram is retried one level lower, and
+keeps its original geometry if safe fails too. Snapped wire ends are kept in
+every case. --force keeps a worse result.
 
 ## Settings
 
