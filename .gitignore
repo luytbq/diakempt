@@ -1,0 +1,5 @@
+/diakempt
+*.bak
+*.bak.*
+# Real user files for running the invariants locally; never committed.
+/local/
