@@ -17,9 +17,9 @@ type File struct {
 	Decoration int       `json:"decoration"`
 	Snap       Snap      `json:"snap"`
 	// Normalized lists the structure rewrites done at the aggressive level.
-	Normalized []Detail       `json:"normalized,omitempty"`
-	Issues     []issue.Issue  `json:"issues,omitempty"`
-	Changed    bool           `json:"changed"`
+	Normalized []Detail      `json:"normalized,omitempty"`
+	Issues     []issue.Issue `json:"issues,omitempty"`
+	Changed    bool          `json:"changed"`
 }
 
 // Snap summarizes wire ends attached across the whole file.
@@ -43,13 +43,13 @@ type Diagram struct {
 	Forced bool `json:"forced,omitempty"`
 	// Level is the level asked for; Applied the one whose result was kept, or
 	// "none" when the original geometry was kept.
-	Level      string     `json:"level"`
-	Applied    string     `json:"applied"`
-	StepDowns  []string   `json:"step_downs,omitempty"`
-	Operations []OpCount  `json:"operations,omitempty"`
-	Details    []Detail   `json:"details,omitempty"`
-	Before     Metrics    `json:"before"`
-	After      Metrics    `json:"after"`
+	Level      string    `json:"level"`
+	Applied    string    `json:"applied"`
+	StepDowns  []string  `json:"step_downs,omitempty"`
+	Operations []OpCount `json:"operations,omitempty"`
+	Details    []Detail  `json:"details,omitempty"`
+	Before     Metrics   `json:"before"`
+	After      Metrics   `json:"after"`
 }
 
 // OpCount is how many changes one operation made.
