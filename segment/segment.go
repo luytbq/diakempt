@@ -116,15 +116,15 @@ func Split(v *view.View) Page {
 			}
 		}
 	}
-	// Free texts join the nearest wired node within reach.
+	// Free texts and notes join the nearest wired node within reach.
 	for _, n := range v.Nodes {
-		if !n.TextOnly || wired[n] || n.Parent != nil {
+		if !(n.TextOnly || n.Shape == "note") || wired[n] || n.Parent != nil {
 			continue
 		}
 		var best *view.Node
 		bd := math.Inf(1)
 		for _, m := range v.Nodes {
-			if m == n || m.TextOnly || m.Container || !wired[m] {
+			if m == n || m.TextOnly || !(wired[m] || wiredInside(m, wired)) {
 				continue
 			}
 			if d := gap(n.Box, m.Box); d < bd {
@@ -133,6 +133,18 @@ func Split(v *view.View) Page {
 		}
 		if best != nil && bd <= AttachDistance {
 			uf.join(idx[n], idx[best])
+		}
+	}
+	// A UML frame (alt, loop, opt) belongs with the messages it encloses.
+	for _, n := range v.Nodes {
+		if n.Shape != "umlFrame" || wired[n] {
+			continue
+		}
+		for _, w := range v.Wires {
+			if crossesBox(w.Path, n.Box) {
+				uf.join(idx[n], widx[w])
+				break
+			}
 		}
 	}
 	type group struct {
@@ -190,6 +202,26 @@ func Split(v *view.View) Page {
 	}
 	sortNodes(out.Decoration, idx)
 	return out
+}
+
+// wiredInside reports whether a container holds a wired shape, as a lifeline
+// holds the activation bars its messages attach to.
+func wiredInside(n *view.Node, wired map[*view.Node]bool) bool {
+	for _, c := range n.Children {
+		if wired[c] || wiredInside(c, wired) {
+			return true
+		}
+	}
+	return false
+}
+
+func crossesBox(pl geom.Polyline, b geom.Rect) bool {
+	for _, s := range pl.Segments() {
+		if s.CrossesRect(b, 0) || b.Contains(s.A) || b.Contains(s.B) {
+			return true
+		}
+	}
+	return false
 }
 
 func nearPath(pl geom.Polyline, p geom.Point) bool {

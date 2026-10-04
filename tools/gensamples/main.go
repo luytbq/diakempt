@@ -19,7 +19,7 @@ func main() {
 	out := flag.String("out", "corpus/clean", "output directory")
 	flag.Parse()
 	for kind, gens := range map[string][]func() *page{
-		"sequence":     {seqUML(3, 4), seqUML(4, 7), seqUML(5, 10), seqHand(3, 5), seqHand(4, 6)},
+		"sequence":     {seqUML(3, 4), seqUML(4, 7), seqUML(5, 10), seqHand(3, 5), seqHand(4, 6), seqRich("checkout", false), seqRich("checkout-scattered", true)},
 		"architecture": {arch(3, 2), arch(4, 3), arch(2, 4)},
 		"network":      {network(5), network(8)},
 		"mindmap":      {mindmap(5), mindmap(8)},
@@ -466,6 +466,69 @@ func classModel(slug string, scattered bool) func() *page {
 		w = p.edge("1", "", assoc, id["Customer"], id["Invoice"])
 		p.endLabel(w, "0..*", 1)
 		p.edge("1", "", depend, id["Transaction"], id["Account"])
+		return p
+	}
+}
+
+// seqRich draws a checkout sequence the way the editor's UML library builds
+// one: lifelines (one with an actor head) holding activation bars, messages
+// between the bars, dashed returns, a self call, an alt frame around two
+// branches and a note. scattered drifts every element off its row and column
+// the way edits leave a diagram.
+func seqRich(slug string, scattered bool) func() *page {
+	return func() *page {
+		p := &page{slug: slug, title: "Checkout"}
+		jx := func(i int) float64 {
+			if !scattered {
+				return 0
+			}
+			return float64((i*37)%50 - 25)
+		}
+		jy := func(i int) float64 {
+			if !scattered {
+				return 0
+			}
+			return float64((i*23)%30 - 15)
+		}
+		life := "shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};"
+		names := []string{"Customer", "Web shop", "Order API", "Payments"}
+		xs := []float64{40, 230, 440, 700}
+		if scattered {
+			xs = []float64{40, 300, 470, 640}
+		}
+		var lines []string
+		for i, n := range names {
+			style := life
+			if i == 0 {
+				style = "shape=umlLifeline;participant=umlActor;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;verticalAlign=top;spacingTop=36;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};"
+			}
+			w := 100.0
+			if i == 0 {
+				w = 20
+			}
+			lines = append(lines, p.vertex("1", n, style, xs[i]+jx(i)+(100-w)/2, 40, w, 560))
+		}
+		bar := "html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};"
+		bWeb := p.vertex(lines[1], "", bar, 45, 90+jy(1), 10, 420)
+		_ = bWeb
+		bAPI := p.vertex(lines[2], "", bar, 45, 130+jy(2), 10, 300)
+		bPay := p.vertex(lines[3], "", bar, 45, 250+jy(3), 10, 80)
+		msg := "html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;"
+		ret := "html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;curved=0;rounded=0;"
+		cx := func(i int) float64 { return xs[i] + jx(i) + 50 }
+		y := 100.0
+		row := func(k int) float64 { return y + float64(k)*40 + jy(k+5) }
+		p.edge("1", "place order", msg, lines[0], bWeb, [2]float64{cx(0), row(0)}, [2]float64{cx(1) - 5, row(0)})
+		p.edge("1", "createOrder(cart)", msg, bWeb, bAPI, [2]float64{cx(1) + 5, row(1)}, [2]float64{cx(2) - 5, row(1)})
+		self := p.edge("1", "validate()", "html=1;align=left;spacingLeft=2;endArrow=block;rounded=0;edgeStyle=orthogonalEdgeStyle;curved=0;", bAPI, bAPI,
+			[2]float64{cx(2) + 35, row(2)}, [2]float64{cx(2) + 35, row(2) + 25})
+		_ = self
+		p.edge("1", "charge(total)", msg, bAPI, bPay, [2]float64{cx(2) + 5, row(4)}, [2]float64{cx(3) - 5, row(4)})
+		p.edge("1", "approved", ret, bPay, bAPI, [2]float64{cx(3) - 5, row(5)}, [2]float64{cx(2) + 5, row(5)})
+		p.edge("1", "order id", ret, bAPI, bWeb, [2]float64{cx(2) - 5, row(7)}, [2]float64{cx(1) + 5, row(7)})
+		p.edge("1", "show confirmation", ret, bWeb, lines[0], [2]float64{cx(1) - 5, row(8)}, [2]float64{cx(0), row(8)})
+		p.vertex("1", "alt", "shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;", xs[2]+jx(2)+20, row(4)-30, 380, 110)
+		p.vertex("1", "Card declines are retried once", "shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=12;", cx(3)+60+jx(7), row(1)-10, 140, 50)
 		return p
 	}
 }

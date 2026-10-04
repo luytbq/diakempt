@@ -14,7 +14,7 @@ func (d *Diagram) siblings() [][]*Node {
 	groups := map[*Node][]*Node{}
 	var order []*Node
 	for _, n := range d.Nodes {
-		if n.Text {
+		if n.Text || n.Overlay {
 			continue
 		}
 		if _, ok := groups[n.Parent]; !ok {

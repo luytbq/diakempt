@@ -50,6 +50,9 @@ var examples = []example{
 	{"20-class-bank", "corpus/clean/class/03-bank.drawio", 0, 0, 0, Normal},
 	{"21-class-bank-scattered", "corpus/clean/class/04-bank-scattered.drawio", 0, 0, 0, Normal},
 	{"22-class-bank-messified", "corpus/clean/class/03-bank.drawio", 6, 60, 0.7, Normal},
+	{"23-sequence-checkout", "corpus/clean/sequence/06-checkout.drawio", 0, 0, 0, Normal},
+	{"24-sequence-checkout-scattered", "corpus/clean/sequence/07-checkout-scattered.drawio", 0, 0, 0, Normal},
+	{"25-sequence-uml", "corpus/clean/sequence/03-uml-5x10.drawio", 0, 0, 0, Normal},
 }
 
 // TestShowcase writes showcase/NAME.before.drawio and NAME.after.drawio for

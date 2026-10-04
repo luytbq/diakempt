@@ -409,8 +409,8 @@ Postponed on purpose:
 - .drawio.svg and .drawio.png input and output, which needs the drawio CLI to
   regenerate the image part;
 - a web service on top of the core;
-- an own optimizer for sequence diagrams (lifelines, message order, activation
-  boxes);
+- an optimizer for hand-drawn sequence diagrams (boxes with dashed lines);
+  UML lifeline diagrams have one since v1.2;
 - detection of more kinds: ER, state, component, BPMN, mind map, network (class
   diagrams are detected and laid out since v1.1);
 - a general layout engine that handles nested containers and undirected graphs

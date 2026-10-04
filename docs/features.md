@@ -87,7 +87,7 @@ wire, end, target and distance.
 
 Operations, by the lowest level that runs them:
 
-- safe: snap, flowlayout, classlayout, separate, containers, reroute, labels
+- safe: snap, flowlayout, seqlayout, classlayout, separate, containers, reroute, labels
 - normal: align, resize, samesize, spacing, compact, grid
 - aggressive: normalize, relayout
 
@@ -123,6 +123,34 @@ wire looping to its own shape, containers that are not lanes or their pool, a
 shape outside every lane, or a table that does not validate. A result that
 scores worse than the original also falls back.
 
+### seqlayout (all levels)
+
+A sequence diagram drawn with the editor's UML lifeline shape (shape=umlLifeline)
+is laid out from scratch:
+
+- lifelines stay in their left-to-right order, in one row with their heads
+  aligned, at least 40px apart and wide enough apart for every message label
+  between them (a self call's label counts on its right);
+- messages keep their time order (top to bottom; ties in document order) and
+  get one row each, two for a self call, every message horizontal; the row
+  height fits the tallest label;
+- a message attached to an activation bar leaves it from the side facing its
+  target and enters one on the side facing its source; one attached to a bare
+  lifeline meets its center line;
+- each activation bar spans its first to its last message, 10px beyond each,
+  keeping its offset from the lifeline's center; a bar with no message follows
+  the rows;
+- a UML frame (alt, loop, opt; shape=umlFrame) is redrawn around the messages
+  it enclosed, 60px beyond the outermost lifeline involved; frames are overlays
+  that are never pushed aside and never count as overlaps;
+- notes follow the nearest lifeline sideways and the rows downward;
+- lifelines extend 40px below the last message.
+
+The diagram keeps its top-left corner. Fewer than two UML lifelines (a
+hand-drawn sequence), a message that does not join two lifelines, or a
+container other than a lifeline falls back to the general operations, as does
+a result that scores worse.
+
 ### classlayout (all levels)
 
 A diagram detected (or forced) as a class diagram is laid out from scratch:
@@ -147,7 +175,9 @@ a text fall back to the general operations, as does a result that scores worse.
 Each page is split into diagrams: groups of shapes joined by wires or by sitting
 in the same top-level container. A free wire end within 4px of another wire or
 of a shape joins it, so arrows drawn between dashed lifelines belong to their
-sequence diagram. A free text within 40px of a wired shape joins its diagram. Everything else (lone shapes, titles, legends, wires attached to
+sequence diagram. A free text or a note (shape=note) within 40px of a wired
+shape, or of a container holding one (such as a lifeline with activation bars),
+joins its diagram. A UML frame joins the diagram whose wires it encloses. Everything else (lone shapes, titles, legends, wires attached to
 nothing) is decoration and is never changed. Each diagram is reported with an
 identifier such as Page-1 #2 "Login": page, index in reading order, and the top
 container's title or the first shape's text.
@@ -311,7 +341,8 @@ or low confidence and, at medium, the kind it came closest to. Diagrams too
 small to judge (fewer than three shapes or two directed wires) are unknown.
 
 Flowcharts and swimlanes are laid out from scratch (see flowlayout below),
-class diagrams by classlayout; sequence and unknown diagrams get the general
+class diagrams by classlayout, sequence diagrams drawn with UML lifelines by
+seqlayout; hand-drawn sequence diagrams and unknown diagrams get the general
 operations. --type overrides the
 detected kind, so --type flowchart or --type swimlane forces a relayout attempt
 and --type unknown prevents one.

@@ -35,6 +35,7 @@ type Node struct {
 	Children  []*Node
 	Container bool
 	Text      bool
+	Overlay   bool
 	// SetStyle holds style keys to write on the node's cell, for the few
 	// non-geometry keys a relayout needs, such as text wrapping.
 	SetStyle map[string]string
@@ -83,7 +84,7 @@ func New(seg *segment.Diagram, tm *text.Measure) *Diagram {
 			add(vn.Parent)
 		}
 		added[vn] = true
-		n := &Node{V: vn, Box: vn.Box, Orig: vn.Box, Container: vn.Container, Text: vn.TextOnly}
+		n := &Node{V: vn, Box: vn.Box, Orig: vn.Box, Container: vn.Container, Text: vn.TextOnly, Overlay: vn.Overlay}
 		if vn.Parent != nil {
 			if p := d.byV[vn.Parent]; p != nil {
 				n.Parent = p
@@ -429,4 +430,13 @@ func copyMap(m map[string]string) map[string]string {
 		out[k] = v
 	}
 	return out
+}
+
+// TextSize returns the box a text takes in a style's font, as the score
+// measures it.
+func (d *Diagram) TextSize(t string, st doc.Style) (w, h float64) {
+	if t == "" {
+		return 0, 0
+	}
+	return d.measure(t, st)
 }

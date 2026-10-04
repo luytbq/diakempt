@@ -424,15 +424,27 @@ func sequenceShape(d *segment.Diagram) (lifelines, messages int) {
 	return len(lines), messages
 }
 
-// umlMessages counts wires between two different UML lifelines.
+// umlMessages counts wires between UML lifelines, attached to the lifeline
+// itself or to an activation bar on it. A self call counts too.
 func umlMessages(d *segment.Diagram) int {
 	n := 0
 	for _, w := range d.Wires {
-		if w.Src != nil && w.Dst != nil && w.Src != w.Dst && w.Src.Shape == "umlLifeline" && w.Dst.Shape == "umlLifeline" {
+		if Lifeline(w.Src) != nil && Lifeline(w.Dst) != nil {
 			n++
 		}
 	}
 	return n
+}
+
+// Lifeline returns the UML lifeline a node is or sits on, or nil.
+func Lifeline(n *view.Node) *view.Node {
+	for k := 0; n != nil && k < 64; k++ {
+		if n.Shape == "umlLifeline" {
+			return n
+		}
+		n = n.Parent
+	}
+	return nil
 }
 
 func dedupe(s []string) []string {

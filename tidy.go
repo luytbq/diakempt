@@ -13,6 +13,7 @@ import (
 	"github.com/luytbq/diakempt/relayout"
 	"github.com/luytbq/diakempt/report"
 	"github.com/luytbq/diakempt/segment"
+	"github.com/luytbq/diakempt/sequence"
 	"github.com/luytbq/diakempt/snap"
 	"github.com/luytbq/diakempt/text"
 	"github.com/luytbq/diakempt/tidy"
@@ -180,23 +181,33 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 	orig := w.Save()
 	dr.Before = w.Measure()
 	dr.After = dr.Before
-	if dr.Kind == detect.Class && opt.enabled("classlayout", lv) {
-		if err := classes.Layout(w); err != nil {
-			dr.StepDowns = append(dr.StepDowns, "classlayout not possible: "+err.Error())
+	// Kinds with an optimizer of their own that works on the working copy.
+	for _, k := range []struct {
+		kind, op, as string
+		lay          func(*tidy.Diagram) error
+	}{
+		{detect.Class, "classlayout", "a class diagram", classes.Layout},
+		{detect.Sequence, "seqlayout", "a sequence diagram", sequence.Layout},
+	} {
+		if dr.Kind != k.kind || !opt.enabled(k.op, lv) {
+			continue
+		}
+		if err := k.lay(w); err != nil {
+			dr.StepDowns = append(dr.StepDowns, k.op+" not possible: "+err.Error())
 			w.Restore(orig)
 		} else if after := w.Measure(); worse(after, dr.Before) && !opt.Force {
-			dr.StepDowns = append(dr.StepDowns, fmt.Sprintf("classlayout scored %.1f against %.1f before", after.Score, dr.Before.Score))
+			dr.StepDowns = append(dr.StepDowns, fmt.Sprintf("%s scored %.1f against %.1f before", k.op, after.Score, dr.Before.Score))
 			w.Restore(orig)
 		} else {
-			log := &tidy.Log{Counts: map[string]int{"classlayout": 1}}
+			log := &tidy.Log{Counts: map[string]int{k.op: 1}}
 			dr.Applied, dr.After = string(lv), after
 			dr.Operations = log.Ops(opNames())
-			dr.Details = []report.Detail{{Op: "classlayout", Msg: "laid out as a class diagram"}}
+			dr.Details = []report.Detail{{Op: k.op, Msg: "laid out as " + k.as}}
 			if w.Changed() {
 				w.Patch()
 				return dr, true
 			}
-			return dr, false
+			return unchanged(dr), false
 		}
 	}
 	flow := (dr.Kind == detect.Flowchart || dr.Kind == detect.Swimlane) && opt.enabled("flowlayout", lv)
@@ -232,7 +243,7 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 				w.Patch()
 				return dr, true
 			}
-			return dr, false
+			return unchanged(dr), false
 		}
 		dr.StepDowns = append(dr.StepDowns, reason)
 		w.Restore(orig)
@@ -270,7 +281,7 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 			w.Patch()
 			return dr, true
 		}
-		return dr, false
+		return unchanged(dr), false
 	}
 	w.Restore(orig)
 	return dr, false
@@ -403,4 +414,11 @@ func countCode(issues []issue.Issue, code string) int {
 		}
 	}
 	return n
+}
+
+// unchanged clears the operations of a diagram whose result equals what it
+// had: they found nothing to change.
+func unchanged(dr report.Diagram) report.Diagram {
+	dr.Operations, dr.Details = nil, nil
+	return dr
 }

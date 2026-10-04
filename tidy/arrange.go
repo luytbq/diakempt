@@ -152,7 +152,7 @@ func (d *Diagram) worstOverlap(gap float64) (a, b *Node, ax axis, from, delta fl
 	groups := map[*Node][]*Node{}
 	var parents []*Node
 	for _, n := range d.Nodes {
-		if n.Text {
+		if n.Text || n.Overlay {
 			continue
 		}
 		if _, seen := groups[n.Parent]; !seen {

@@ -37,6 +37,10 @@ type Node struct {
 	// TextOnly is set for shapes that draw no outline: text, labels, notes
 	// without a border.
 	TextOnly bool
+	// Overlay is set for frames drawn over other shapes on purpose, such as the
+	// alt and loop frames of a sequence diagram. They are never pushed aside
+	// and never count as overlapping.
+	Overlay bool
 	// Parent is the container this node sits in, nil at the top.
 	Parent   *Node
 	Children []*Node
@@ -99,6 +103,7 @@ func Build(p *doc.Page) *View {
 			Text: PlainText(c.Label(), st.Value("html", "0") == "1"),
 		}
 		n.TextOnly = isTextOnly(st)
+		n.Overlay = n.Shape == "umlFrame"
 		n.Container = isContainer(c, st)
 		nodes[c.ID] = n
 	}

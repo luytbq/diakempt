@@ -61,7 +61,7 @@ func (d *Diagram) Measure() report.Metrics {
 			continue
 		}
 		for _, o := range d.Nodes {
-			if o.Container || o.Text || o.Within(n) || n.Within(o) {
+			if o.Container || o.Text || o.Overlay || o.Within(n) || n.Within(o) {
 				continue
 			}
 			if n.Box.Inset(1).Overlaps(o.Box.Inset(1)) && !n.Box.ContainsRect(o.Box) {
@@ -71,7 +71,7 @@ func (d *Diagram) Measure() report.Metrics {
 	}
 	// A shape sticking out of its container crosses the container's border.
 	for _, n := range d.Nodes {
-		if n.Parent != nil && !n.Text && !n.Parent.Box.Inset(-1).ContainsRect(n.Box) {
+		if n.Parent != nil && !n.Text && !n.Overlay && !n.Parent.Box.Inset(-1).ContainsRect(n.Box) {
 			m.NodeOverlaps++
 		}
 	}
@@ -80,7 +80,7 @@ func (d *Diagram) Measure() report.Metrics {
 		labels = append(labels, w.LabelBoxes()...)
 	}
 	for _, n := range d.Nodes {
-		if n.Text {
+		if n.Text && !n.Overlay {
 			labels = append(labels, n.Box)
 		}
 	}
@@ -115,7 +115,7 @@ func (d *Diagram) Measure() report.Metrics {
 func (d *Diagram) solidNodes() []*Node {
 	var out []*Node
 	for _, n := range d.Nodes {
-		if !n.Container && !n.Text {
+		if !n.Container && !n.Text && !n.Overlay {
 			out = append(out, n)
 		}
 	}

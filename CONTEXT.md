@@ -58,6 +58,12 @@ out; it moves with its nearest diagram.
 **Kind** - what sort of diagram something is: flowchart, swimlane, sequence,
 class, or unknown.
 
+**Lifeline** - a participant of a sequence diagram: the editor's UML lifeline
+shape, a head with a dashed line below it. **Activation bar** - a narrow box
+on a lifeline, the span during which that participant is active; messages
+often attach to it. **Frame** - an alt, loop or opt box drawn over messages;
+an overlay, never pushed aside.
+
 **Trunk** - the shared path the generalizations of one parent class take: up
 from each child to a level in the gap between ranks, across, and into the
 parent from below.

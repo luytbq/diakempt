@@ -80,8 +80,12 @@ What the report says, and what to do:
   --type flowchart or --type swimlane.
 - Kind detected wrongly and the user does not want a relayout: rerun with
   --type unknown.
-- Kind sequence: there is no sequence optimizer yet; only the general tidy
-  runs. Say so.
+- "seqlayout not possible: fewer than two UML lifelines": the sequence diagram
+  is hand-drawn (boxes and dashed lines), which seqlayout does not handle; only
+  the general tidy ran. Redrawing it with the UML lifeline shapes lets
+  seqlayout run.
+- "seqlayout not possible: message ... does not join two lifelines": a found
+  or lost message, or an arrow to a note; the general tidy ran instead.
 - Kind unknown but the user says it is a class diagram drawn with plain boxes:
   classlayout only recognizes the editor's class shape; --type class forces
   the class layout on whatever shapes are there.
