@@ -62,10 +62,10 @@ aggressive level exists.
 | --force | keep results that score worse than the original |
 | --seed N | seed for randomized optimizers, default 1 |
 
-These flags are accepted and validated. Implemented today: snap, flowlayout and
-the safe operations (separate, containers, reroute, labels). The normal and aggressive
-operations do not change the output yet, so --level normal and --level
-aggressive currently behave like safe.
+These flags are accepted and validated. Implemented today: snap, flowlayout,
+the safe operations and the normal operations. The aggressive operations
+(normalize, relayout) do not exist yet, so --level aggressive behaves like
+normal.
 
 ### snap (all levels)
 
@@ -114,6 +114,11 @@ icons (other than the flowchart library) and shapes whose label sits outside
 them keep their drawn size; a label below or above such a shape is reserved
 room, and wires stop beyond it (an exitDy or entryDy offset with
 exitPerimeter=0 or entryPerimeter=0).
+
+The table is read from positions, so a first layout can read back as a
+slightly different table. flowlayout lays out again from its own result until
+the table read back stops changing (at most four rounds, else the round with
+the fewest defects wins), so tidying the output again changes nothing.
 
 Diagrams the engine cannot represent fall back to the general operations, with
 the reason in the report: a wire with a free end or ending on a container, a
@@ -165,15 +170,56 @@ A free text that overlaps a shape or another label moves to the nearest clear
 spot within 60px. A wire label that overlaps something slides along its wire to
 the clear position nearest where it was.
 
+### align (normal)
+
+Siblings whose centers lie within --align-tolerance on an axis line up on the
+center of the largest of them. A wire with waypoints between two shapes that
+end up level becomes a straight wire when nothing is in the way.
+
+### resize (normal)
+
+A shape whose text clearly overflows it (by more than 6px, measured at its
+font size, narrowed for fonts other than Verdana) grows about its center:
+diamonds hold text in their middle half, ellipses in seven tenths. Shapes are
+never shrunk, and images, icons and shapes with outside labels are never
+resized.
+
+### samesize (normal)
+
+Siblings with the same style and similar size (each at least two thirds of the
+largest) take the largest size, about their centers.
+
+### spacing (normal)
+
+In each aligned row or column of three or more siblings, gaps that are already
+similar (each within half of their median) but not even (more than one grid
+step apart) become the median gap.
+
+### compact (normal)
+
+An empty band across the whole diagram wider than four --min-gap closes down
+to two --min-gap. Only a container's edges block a band; its empty inside does
+not.
+
+### grid (normal)
+
+Each shape's center moves onto the --grid; centers that were equal stay equal.
+Lanes of stacked pools are left alone.
+
+The normal operations repeat as a group until a pass moves nothing (at most
+four passes), then wires are rerouted and labels moved.
+
 ### Score and stepping down
 
 Each diagram is scored before and after: wires through shapes and overlapping
 shapes (including a shape sticking out of its container) weigh 100, overlapping
 labels 20, wires on top of wires 10, crossings 5, plus small weights for area
-and wire length. If the result scores worse than the original, or swaps two
-shapes' sides at safe or normal, the diagram is retried one level lower, and
-keeps its original geometry if safe fails too. Snapped wire ends are kept in
-every case. --force keeps a worse result.
+and wire length. A result is worse when its defects score higher, or, with
+equal defects, when area or wire length grew by more than a tenth. A worse
+result, or one that swaps two shapes' sides at safe or normal, is retried one
+level lower, and the diagram keeps its original geometry if safe fails too. A
+flowchart or swimlane whose flowlayout fails falls back to safe at most.
+Snapped wire ends are kept in every case. --force keeps a worse result.
 
 ## Settings
 

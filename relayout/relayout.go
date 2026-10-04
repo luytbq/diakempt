@@ -678,3 +678,134 @@ func offOutline(s layout.Shape, frac [2]float64) bool {
 	}
 	return true
 }
+
+// Run lays a diagram out and applies the result, then reads the result back
+// and lays it out again, until the Flow Table read from the drawing stops
+// changing. The table is recovered from positions, so a first layout can read
+// back as a slightly different table; settling on a layout that reads back as
+// its own table means tidying the output again changes nothing. When no such
+// layout turns up within a few rounds, the best-scoring one is kept.
+func Run(d *tidy.Diagram, sd *segment.Diagram, withLanes bool, tm *text.Measure) (*Plan, error) {
+	type round struct {
+		plan  *Plan
+		snap  tidy.Snapshot
+		score float64
+	}
+	var rounds []round
+	cur := sd
+	var back map[*view.Node]*view.Node
+	var wback map[*view.Wire]*view.Wire
+	var prevKey string
+	for i := 0; i < 4; i++ {
+		plan, err := Build(cur, withLanes)
+		if err != nil {
+			if i == 0 {
+				return nil, err
+			}
+			break
+		}
+		plan.remap(back, wback)
+		key := plan.key()
+		if i > 0 && key == prevKey {
+			// The last layout reads back as the table it came from.
+			last := rounds[len(rounds)-1]
+			d.Restore(last.snap)
+			return last.plan, nil
+		}
+		prevKey = key
+		r, err := plan.Lay(tm)
+		if err != nil {
+			if i == 0 {
+				return nil, err
+			}
+			break
+		}
+		plan.Apply(d, r, sd)
+		rounds = append(rounds, round{plan, d.Save(), tidy.DefectScore(d.Measure())})
+		cur, back, wback = readBack(sd, d)
+	}
+	best := rounds[0]
+	for _, r := range rounds[1:] {
+		if r.score < best.score {
+			best = r
+		}
+	}
+	d.Restore(best.snap)
+	return best.plan, nil
+}
+
+// key identifies a Flow Table by its rows, ignoring nothing that matters to the
+// engine.
+func (p *Plan) key() string {
+	var b strings.Builder
+	for _, r := range p.Rows {
+		fmt.Fprintf(&b, "%s|%s|%s|%v|%v;", r.ID, r.Type, r.Parent, r.Meta, r.Lines)
+	}
+	return b.String()
+}
+
+// remap points a plan built from a read-back copy at the original nodes and
+// wires, which the working copy knows.
+func (p *Plan) remap(nodes map[*view.Node]*view.Node, wires map[*view.Wire]*view.Wire) {
+	if nodes == nil {
+		return
+	}
+	for id, n := range p.nodes {
+		p.nodes[id] = nodes[n]
+	}
+	for id, n := range p.lanes {
+		p.lanes[id] = nodes[n]
+	}
+	for i, n := range p.laneOrder {
+		p.laneOrder[i] = nodes[n]
+	}
+	if p.pool != nil {
+		p.pool = nodes[p.pool]
+	}
+	for _, e := range p.edges {
+		e.w, e.src, e.dst = wires[e.w], nodes[e.src], nodes[e.dst]
+	}
+}
+
+// readBack copies a segmented diagram with the shapes where the working copy
+// now has them, so it can be read as a Flow Table again. It also returns the
+// way from each copy back to its original.
+func readBack(sd *segment.Diagram, d *tidy.Diagram) (*segment.Diagram, map[*view.Node]*view.Node, map[*view.Wire]*view.Wire) {
+	copies := map[*view.Node]*view.Node{}
+	for _, n := range sd.Nodes {
+		c := *n
+		if w := d.NodeFor(n); w != nil {
+			c.Box = w.Box
+		}
+		c.Children = nil
+		copies[n] = &c
+	}
+	out := &segment.Diagram{Page: sd.Page, Index: sd.Index, Name: sd.Name}
+	back := map[*view.Node]*view.Node{}
+	wback := map[*view.Wire]*view.Wire{}
+	for _, n := range sd.Nodes {
+		c := copies[n]
+		back[c] = n
+		if n.Parent != nil {
+			c.Parent = copies[n.Parent]
+		}
+		for _, ch := range n.Children {
+			if cc := copies[ch]; cc != nil {
+				c.Children = append(c.Children, cc)
+			}
+		}
+		out.Nodes = append(out.Nodes, c)
+	}
+	for _, w := range sd.Wires {
+		c := *w
+		if w.Src != nil {
+			c.Src = copies[w.Src]
+		}
+		if w.Dst != nil {
+			c.Dst = copies[w.Dst]
+		}
+		out.Wires = append(out.Wires, &c)
+		wback[&c] = w
+	}
+	return out, back, wback
+}

@@ -5,7 +5,6 @@ import (
 
 	"github.com/luytbq/diakempt/detect"
 	"github.com/luytbq/diakempt/doc"
-	"github.com/luytbq/diakempt/engine/layout"
 	"github.com/luytbq/diakempt/relayout"
 	"github.com/luytbq/diakempt/report"
 	"github.com/luytbq/diakempt/segment"
@@ -83,16 +82,10 @@ func tidyDiagram(sd *segment.Diagram, tm *text.Measure, lv Level, opt Options) (
 	dr.After = dr.Before
 	if (dr.Kind == detect.Flowchart || dr.Kind == detect.Swimlane) && opt.enabled("flowlayout", lv) {
 		reason := ""
-		plan, err := relayout.Build(sd, dr.Kind == detect.Swimlane)
-		if err == nil {
-			var r layout.Result
-			if r, err = plan.Lay(tm); err == nil {
-				plan.Apply(w, r, sd)
-			}
-		}
+		plan, err := relayout.Run(w, sd, dr.Kind == detect.Swimlane, tm)
 		if err != nil {
 			reason = "flowlayout not possible: " + err.Error()
-		} else if after := w.Measure(); after.Score > dr.Before.Score+1e-9 && !opt.Force {
+		} else if after := w.Measure(); worse(after, dr.Before) && !opt.Force {
 			reason = fmt.Sprintf("flowlayout scored %.1f against %.1f before", after.Score, dr.Before.Score)
 		} else {
 			log := &tidy.Log{}
@@ -110,7 +103,13 @@ func tidyDiagram(sd *segment.Diagram, tm *text.Measure, lv Level, opt Options) (
 		dr.StepDowns = append(dr.StepDowns, reason)
 		w.Restore(orig)
 	}
-	for rank := lv.rank(); rank >= 0; rank-- {
+	// A flow the engine could not improve gets only the safe operations: the
+	// shape operations of normal are for diagrams no optimizer understands.
+	top := lv.rank()
+	if (dr.Kind == detect.Flowchart || dr.Kind == detect.Swimlane) && top > Safe.rank() {
+		top = Safe.rank()
+	}
+	for rank := top; rank >= 0; rank-- {
 		at := Levels[rank]
 		w.Restore(orig)
 		log := &tidy.Log{}
@@ -122,7 +121,7 @@ func tidyDiagram(sd *segment.Diagram, tm *text.Measure, lv Level, opt Options) (
 				reason = fmt.Sprintf("%s broke relative order (%v)", at, err)
 			}
 		}
-		if reason == "" && after.Score > dr.Before.Score+1e-9 && !opt.Force {
+		if reason == "" && worse(after, dr.Before) && !opt.Force {
 			reason = fmt.Sprintf("%s scored %.1f against %.1f before", at, after.Score, dr.Before.Score)
 		}
 		if reason != "" {
@@ -146,8 +145,39 @@ func tidyDiagram(sd *segment.Diagram, tm *text.Measure, lv Level, opt Options) (
 // runLevel applies the general operations of one level.
 func runLevel(w *tidy.Diagram, at Level, opt Options, log *tidy.Log) {
 	on := func(op string) bool { return opt.enabled(op, at) }
-	if on("separate") || on("containers") {
-		w.Arrange(opt.value("min-gap"), on("separate"), on("containers"), log)
+	gap := opt.value("min-gap")
+	// The shape operations feed each other (aligning can open an overlap,
+	// separating can unevenly space a row), so they repeat until a pass moves
+	// nothing, or give up after a few passes.
+	for pass := 0; pass < 4; pass++ {
+		before := w.Save()
+		if on("align") {
+			w.Align(opt.value("align-tolerance"), log)
+		}
+		if on("resize") {
+			w.Resize(log)
+		}
+		if on("samesize") {
+			w.SameSize(log)
+		}
+		if on("separate") || on("containers") {
+			w.Arrange(gap, on("separate"), on("containers"), log)
+		}
+		if on("spacing") {
+			w.Spacing(opt.value("grid"), log)
+		}
+		if on("compact") {
+			w.Compact(gap, log)
+		}
+		if on("grid") {
+			w.Grid(opt.value("grid"), log)
+		}
+		if on("separate") || on("containers") {
+			w.Arrange(gap, on("separate"), on("containers"), log)
+		}
+		if w.Unchanged(before) {
+			break
+		}
 	}
 	if on("reroute") {
 		w.Reroute(log)
@@ -163,4 +193,16 @@ func opNames() []string {
 		out[i] = op.Name
 	}
 	return out
+}
+
+// worse decides whether a result is worse than the original (docs/adr/0004).
+// Defects decide; area and wire length, which tidying shapes up may grow a
+// little, only count when the defects are equal and they grew by more than a
+// tenth.
+func worse(after, before report.Metrics) bool {
+	da, db := tidy.DefectScore(after), tidy.DefectScore(before)
+	if da != db {
+		return da > db
+	}
+	return after.Area > 1.1*before.Area+1 || after.WireLength > 1.1*before.WireLength+1
 }

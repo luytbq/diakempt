@@ -65,7 +65,8 @@ const sameLine = 0.5
 // move with them. Nodes before from stay. Because everything past the line
 // moves by the same amount, no two nodes swap order.
 //
-// A container straddling the line does not move; it grows later to fit.
+// A container straddling the line stays where it is and stretches (or
+// shrinks) by delta, so its far edge follows its contents.
 func (d *Diagram) Shift(a axis, from, delta float64) {
 	moved := map[*Node]bool{}
 	var units []*Node
@@ -81,6 +82,13 @@ func (d *Diagram) Shift(a axis, from, delta float64) {
 		past := center(n.Box, a) >= from-sameLine
 		if n.Container {
 			past = start >= from-sameLine
+			if !past && end(n.Box, a) >= from-sameLine {
+				if a == axisX {
+					n.Box.W = math.Max(1, n.Box.W+delta)
+				} else {
+					n.Box.H = math.Max(1, n.Box.H+delta)
+				}
+			}
 		}
 		if past {
 			moved[n] = true
@@ -357,6 +365,9 @@ func (d *Diagram) Arrange(gap float64, separate, containers bool, log *Log) {
 		}
 	}
 }
+
+// Unchanged reports whether no node moved or resized since the snapshot.
+func (d *Diagram) Unchanged(s Snapshot) bool { return d.sameAs(s) }
 
 func (d *Diagram) sameAs(s Snapshot) bool {
 	for i, n := range d.Nodes {

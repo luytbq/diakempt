@@ -74,7 +74,7 @@ func TestNeverWorseAndOrderKept(t *testing.T) {
 		for _, in := range corpus(t) {
 			res := tidyOrFail(t, in, Options{Level: lv})
 			for _, d := range res.Report.Diagrams {
-				if d.After.Score > d.Before.Score+1e-9 {
+				if worse(d.After, d.Before) {
 					t.Errorf("%s %s %s: score %.2f --> %.2f", lv, in.name, d.ID, d.Before.Score, d.After.Score)
 				}
 			}

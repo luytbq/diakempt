@@ -211,3 +211,11 @@ func shareEnd(a, b *Wire) bool {
 	return (a.Src != nil && (a.Src == b.Src || a.Src == b.Dst)) ||
 		(a.Dst != nil && (a.Dst == b.Src || a.Dst == b.Dst))
 }
+
+// DefectScore is the part of the score that counts defects, without area and
+// wire length.
+func DefectScore(m report.Metrics) float64 {
+	return weightThrough*float64(m.WiresThroughNodes) + weightNodeOverlap*float64(m.NodeOverlaps) +
+		weightLabelOverlap*float64(m.LabelOverlaps) + weightWireOverlap*float64(m.WireOverlaps) +
+		weightCrossing*float64(m.WireCrossings)
+}

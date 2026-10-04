@@ -5,6 +5,7 @@ package tidy
 
 import (
 	"math"
+	"strings"
 
 	"github.com/luytbq/diakempt/doc"
 	"github.com/luytbq/diakempt/geom"
@@ -133,20 +134,28 @@ func (d *Diagram) readLabels(vw *view.Wire) []label {
 	return out
 }
 
+// helveticaWidth is how wide Helvetica, draw.io's default font, sets text
+// compared with Verdana, the font the width table holds.
+const helveticaWidth = 0.86
+
 // measure returns the box of a text at its style's font size, measured as
-// Verdana scaled from 12px.
+// Verdana scaled from 12px, and narrowed for any other font family.
 func (d *Diagram) measure(t string, st doc.Style) (float64, float64) {
 	size := geom.ParseNumber(st.Value("fontSize", "12"))
 	if size <= 0 {
 		size = 12
 	}
 	scale := size / 12
+	widthScale := scale
+	if !strings.EqualFold(st.Value("fontFamily", "Helvetica"), "Verdana") {
+		widthScale *= helveticaWidth
+	}
 	var lines []string
 	for _, l := range splitLines(t) {
 		lines = append(lines, l)
 	}
 	w, h := d.tm.Box(lines)
-	return w*scale + 4, h*scale + 2
+	return w*widthScale + 4, h*scale + 2
 }
 
 func splitLines(s string) []string {
