@@ -411,7 +411,8 @@ Postponed on purpose:
 - a web service on top of the core;
 - an own optimizer for sequence diagrams (lifelines, message order, activation
   boxes);
-- detection of more kinds: class, ER, state, component, BPMN, mind map, network;
+- detection of more kinds: ER, state, component, BPMN, mind map, network (class
+  diagrams are detected and laid out since v1.1);
 - a general layout engine that handles nested containers and undirected graphs
   (force-directed), replacing the flowchart-mode fallback at aggressive;
 - the future of flowcast relative to diakempt, including whether table, mermaid and

@@ -2,9 +2,13 @@ package diakempt
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/luytbq/diakempt/classes"
 	"github.com/luytbq/diakempt/detect"
 	"github.com/luytbq/diakempt/doc"
+	"github.com/luytbq/diakempt/geom"
+	"github.com/luytbq/diakempt/issue"
 	"github.com/luytbq/diakempt/normalize"
 	"github.com/luytbq/diakempt/relayout"
 	"github.com/luytbq/diakempt/report"
@@ -33,51 +37,140 @@ func Tidy(data []byte, opt Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	lv := opt.level()
 	rep := report.File{Pages: len(d.Pages), Issues: warns}
 	tm := text.Default()
 	for _, p := range d.Pages {
 		if p.Empty() {
 			continue
 		}
-		if opt.enabled("snap", lv) {
-			r := snap.Run(view.Build(p), snap.Params{
-				Distance: opt.value("snap-distance"),
-				Ratio:    opt.value("snap-ratio"),
-				Margin:   opt.value("snap-margin"),
-			})
-			rep.Snap.Snapped += r.Snapped
-			rep.Snap.Ambiguous += r.Ambiguous
-			rep.Snap.Details = append(rep.Snap.Details, r.Details...)
-			rep.Issues = append(rep.Issues, r.Issues...)
-		}
-		if lv == Aggressive && opt.enabled("normalize", lv) {
-			if ds := normalize.Run(p); len(ds) > 0 {
-				rep.Normalized = append(rep.Normalized, ds...)
-				rep.Changed = true
+		// One pass can make work for another: moving shapes brings a free wire
+		// end within snap reach, and a new attachment joins two diagrams. Passes
+		// repeat until one changes nothing, so tidying the output again finds
+		// nothing to do.
+		var merged *pageReport
+		for pass := 0; pass < maxPasses; pass++ {
+			pr := tidyPage(p, tm, opt, pass == 0)
+			if merged == nil {
+				merged = pr
+			} else {
+				merged.absorb(pr)
+			}
+			if !pr.changed {
+				break
 			}
 		}
-		seg := segment.Split(view.Build(p))
-		rep.Decoration += len(seg.Decoration) + len(seg.LooseWires)
-		for _, sd := range seg.Diagrams {
-			dr, changed := tidyDiagram(sd, tm, lv, opt)
-			rep.Diagrams = append(rep.Diagrams, dr)
-			rep.Changed = rep.Changed || changed
+		merged.into(&rep)
+	}
+	rep.Snap.Ambiguous = countCode(rep.Issues, "snap.ambiguous")
+	return Result{Output: d.Bytes(), Report: rep}, nil
+}
+
+// maxPasses bounds the passes over one page.
+const maxPasses = 3
+
+// pageReport is what one or more passes over a page found and did.
+type pageReport struct {
+	snap       report.Snap
+	normalized []report.Detail
+	issues     []issue.Issue
+	diagrams   []report.Diagram
+	decoration int
+	changed    bool
+}
+
+// tidyPage runs one pass over a page: snap, normalize at aggressive, then each
+// diagram. Normalizing only happens on the first pass.
+func tidyPage(p *doc.Page, tm *text.Measure, opt Options, first bool) *pageReport {
+	lv := opt.level()
+	pr := &pageReport{}
+	if opt.enabled("snap", lv) {
+		r := snap.Run(view.Build(p), snapParams(opt))
+		pr.snap.Snapped, pr.snap.Details = r.Snapped, r.Details
+		pr.issues = r.Issues
+		pr.changed = r.Snapped > 0
+	}
+	if first && lv == Aggressive && opt.enabled("normalize", lv) {
+		if ds := normalize.Run(p); len(ds) > 0 {
+			pr.normalized = ds
+			pr.changed = true
 		}
 	}
-	rep.Changed = rep.Changed || rep.Snap.Snapped > 0
-	return Result{Output: d.Bytes(), Report: rep}, nil
+	seg := segment.Split(view.Build(p))
+	pr.decoration = len(seg.Decoration) + len(seg.LooseWires)
+	for _, sd := range seg.Diagrams {
+		dr, changed := tidyDiagram(sd, others(seg, sd), tm, lv, opt)
+		pr.diagrams = append(pr.diagrams, dr)
+		pr.changed = pr.changed || changed
+	}
+	return pr
+}
+
+// absorb folds a later pass into this report. Diagrams are those of the last
+// pass; each keeps the metrics from before the first pass that saw it, and the
+// changes of every pass add up.
+func (pr *pageReport) absorb(later *pageReport) {
+	pr.snap.Snapped += later.snap.Snapped
+	pr.snap.Details = append(pr.snap.Details, later.snap.Details...)
+	pr.normalized = append(pr.normalized, later.normalized...)
+	pr.issues = mergeIssues(pr.issues, later.issues)
+	pr.decoration = later.decoration
+	pr.changed = pr.changed || later.changed
+	earlier := map[string]report.Diagram{}
+	for _, d := range pr.diagrams {
+		earlier[d.ID] = d
+	}
+	var out []report.Diagram
+	for _, d := range later.diagrams {
+		// A diagram that gained or lost members between passes is a different
+		// diagram; its own figures stand.
+		if e, ok := earlier[d.ID]; ok && e.Shapes == d.Shapes && e.Wires == d.Wires {
+			d.Before = e.Before
+			d.Operations = addOps(e.Operations, d.Operations)
+			d.Details = append(e.Details, d.Details...)
+			d.StepDowns = append(e.StepDowns, d.StepDowns...)
+			if e.Applied != "none" {
+				d.Applied = e.Applied
+			}
+		}
+		out = append(out, d)
+	}
+	pr.diagrams = out
+}
+
+func addOps(a, b []report.OpCount) []report.OpCount {
+	count := map[string]int{}
+	for _, o := range append(append([]report.OpCount(nil), a...), b...) {
+		count[o.Op] += o.Count
+	}
+	var out []report.OpCount
+	for _, name := range opNames() {
+		if n := count[name]; n > 0 {
+			out = append(out, report.OpCount{Op: name, Count: n})
+		}
+	}
+	return out
+}
+
+func (pr *pageReport) into(rep *report.File) {
+	rep.Snap.Snapped += pr.snap.Snapped
+	rep.Snap.Details = append(rep.Snap.Details, pr.snap.Details...)
+	rep.Normalized = append(rep.Normalized, pr.normalized...)
+	rep.Issues = mergeIssues(rep.Issues, pr.issues)
+	rep.Diagrams = append(rep.Diagrams, pr.diagrams...)
+	rep.Decoration += pr.decoration
+	rep.Changed = rep.Changed || pr.changed
 }
 
 // tidyDiagram optimizes one diagram at the requested level, stepping down a
 // level whenever the result scores worse than the original or breaks relative
 // order where the level must keep it (docs/adr/0004). It patches the document
 // with the kept result.
-func tidyDiagram(sd *segment.Diagram, tm *text.Measure, lv Level, opt Options) (report.Diagram, bool) {
+func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Level, opt Options) (report.Diagram, bool) {
 	w := tidy.New(sd, tm)
+	w.Others = rest
 	det := detect.Detect(sd)
 	dr := report.Diagram{
-		ID: sd.ID(), Page: sd.Page, Index: sd.Index, Name: sd.Name,
+		ID: sd.ID(), Page: sd.Page, Index: sd.Index, Name: sd.Name, Shapes: len(sd.Nodes), Wires: len(sd.Wires),
 		Kind: det.Kind, Confidence: det.Confidence, Signals: det.Signals,
 		Level: string(lv), Applied: "none",
 	}
@@ -87,6 +180,25 @@ func tidyDiagram(sd *segment.Diagram, tm *text.Measure, lv Level, opt Options) (
 	orig := w.Save()
 	dr.Before = w.Measure()
 	dr.After = dr.Before
+	if dr.Kind == detect.Class && opt.enabled("classlayout", lv) {
+		if err := classes.Layout(w); err != nil {
+			dr.StepDowns = append(dr.StepDowns, "classlayout not possible: "+err.Error())
+			w.Restore(orig)
+		} else if after := w.Measure(); worse(after, dr.Before) && !opt.Force {
+			dr.StepDowns = append(dr.StepDowns, fmt.Sprintf("classlayout scored %.1f against %.1f before", after.Score, dr.Before.Score))
+			w.Restore(orig)
+		} else {
+			log := &tidy.Log{Counts: map[string]int{"classlayout": 1}}
+			dr.Applied, dr.After = string(lv), after
+			dr.Operations = log.Ops(opNames())
+			dr.Details = []report.Detail{{Op: "classlayout", Msg: "laid out as a class diagram"}}
+			if w.Changed() {
+				w.Patch()
+				return dr, true
+			}
+			return dr, false
+		}
+	}
 	flow := (dr.Kind == detect.Flowchart || dr.Kind == detect.Swimlane) && opt.enabled("flowlayout", lv)
 	free := dr.Kind == detect.Unknown && opt.enabled("relayout", lv)
 	if flow || free {
@@ -241,4 +353,54 @@ func hasLanes(sd *segment.Diagram) bool {
 		}
 	}
 	return false
+}
+
+// others returns the boxes of everything on a page outside one diagram.
+func others(seg segment.Page, sd *segment.Diagram) []geom.Rect {
+	var out []geom.Rect
+	for _, d := range seg.Diagrams {
+		if d != sd {
+			out = append(out, d.Bounds())
+		}
+	}
+	for _, n := range seg.Decoration {
+		out = append(out, n.Box)
+	}
+	for _, w := range seg.LooseWires {
+		out = append(out, w.Path.Bounds())
+	}
+	return out
+}
+
+func snapParams(opt Options) snap.Params {
+	return snap.Params{
+		Distance: opt.value("snap-distance"),
+		Ratio:    opt.value("snap-ratio"),
+		Margin:   opt.value("snap-margin"),
+	}
+}
+
+// mergeIssues adds issues not already reported: the second snap pass reports
+// the ambiguous ends the first one did.
+func mergeIssues(have, add []issue.Issue) []issue.Issue {
+	seen := map[string]bool{}
+	for _, is := range have {
+		seen[is.Code+"|"+strings.Join(is.Cells, ",")] = true
+	}
+	for _, is := range add {
+		if !seen[is.Code+"|"+strings.Join(is.Cells, ",")] {
+			have = append(have, is)
+		}
+	}
+	return have
+}
+
+func countCode(issues []issue.Issue, code string) int {
+	n := 0
+	for _, is := range issues {
+		if is.Code == code {
+			n++
+		}
+	}
+	return n
 }

@@ -39,6 +39,9 @@ type Plan struct {
 	laneOrder []*view.Node
 	pool      *view.Node
 	cfg       layout.Config
+	// undirected is set when no wire has a direction, as in networks and mind
+	// maps.
+	undirected bool
 }
 
 type edge struct {
@@ -106,11 +109,14 @@ func Build(sd *segment.Diagram, withLanes bool) (*Plan, error) {
 	} else {
 		p.Dir = direction(edges, p.laneOrder)
 	}
-	// With no direction at all, wires run away from the first shape in reading
-	// order, level by level, so the diagram lays out as a tree from there.
+	// With no direction at all, wires run away from the best connected shape,
+	// level by level, so the diagram lays out as a tree from its hub. The hub
+	// does not depend on positions, so laying the result out again finds the
+	// same tree.
 	depth := map[*view.Node]int{}
 	if len(directed) == 0 && len(edges) > 0 {
 		depth = bfsDepth(leaves, edges, p)
+		p.undirected = true
 	}
 	for _, e := range undirected {
 		da, okA := depth[e.src]
@@ -207,8 +213,9 @@ func (p *Plan) findLanes(containers, leaves []*view.Node, withLanes bool) error 
 	return nil
 }
 
-// bfsDepth numbers each shape by its wire distance from the first shape in
-// reading order of its connected part.
+// bfsDepth numbers each shape by its wire distance from the hub of its
+// connected part: the shape with the most wires, the first in document order
+// on a tie.
 func bfsDepth(leaves []*view.Node, edges []*edge, p *Plan) map[*view.Node]int {
 	adj := map[*view.Node][]*view.Node{}
 	for _, e := range edges {
@@ -216,13 +223,7 @@ func bfsDepth(leaves []*view.Node, edges []*edge, p *Plan) map[*view.Node]int {
 		adj[e.dst] = append(adj[e.dst], e.src)
 	}
 	order := append([]*view.Node(nil), leaves...)
-	sort.SliceStable(order, func(i, j int) bool {
-		a, b := order[i].Box.Center(), order[j].Box.Center()
-		if math.Abs(p.flow(a)-p.flow(b)) > 5 {
-			return p.flow(a) < p.flow(b)
-		}
-		return p.cross(a) < p.cross(b)
-	})
+	sort.SliceStable(order, func(i, j int) bool { return len(adj[order[i]]) > len(adj[order[j]]) })
 	depth := map[*view.Node]int{}
 	for _, root := range order {
 		if _, seen := depth[root]; seen || len(adj[root]) == 0 {
@@ -323,9 +324,12 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 		}
 		return p.cross(a) < p.cross(b)
 	})
-	for i, n := range byFlow {
+	// Ids follow document order, which laying out does not change.
+	docIndex := map[*view.Node]int{}
+	for i, n := range leaves {
 		ids[n] = fmt.Sprintf("N%d", i+1)
 		p.nodes[ids[n]] = n
+		docIndex[n] = i
 	}
 	outs, ins := map[*view.Node][]*edge{}, map[*view.Node][]*edge{}
 	for _, e := range edges {
@@ -336,6 +340,13 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 	// branch (the target most in line with the source) last.
 	for _, n := range byFlow {
 		es := outs[n]
+		if p.undirected {
+			// Without arrows positions carry no intent, and reading them back
+			// from the engine's own placement would give a different order
+			// each time; document order is stable.
+			sort.SliceStable(es, func(i, j int) bool { return docIndex[es[i].dst] < docIndex[es[j].dst] })
+			continue
+		}
 		c := p.cross(n.Box.Center())
 		main := -1
 		for i, e := range es {

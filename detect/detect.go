@@ -24,6 +24,7 @@ const (
 	Flowchart = "flowchart"
 	Swimlane  = "swimlane"
 	Sequence  = "sequence"
+	Class     = "class"
 	Unknown   = "unknown"
 )
 
@@ -53,8 +54,9 @@ func Detect(d *segment.Diagram) Result {
 		Flowchart: f.flowScore(false),
 		Swimlane:  f.flowScore(true),
 		Sequence:  f.sequenceScore(),
+		Class:     f.classScore(),
 	}
-	kinds := []string{Flowchart, Swimlane, Sequence}
+	kinds := []string{Flowchart, Swimlane, Sequence, Class}
 	sort.SliceStable(kinds, func(i, j int) bool { return scores[kinds[i]] > scores[kinds[j]] })
 	best, second := kinds[0], scores[kinds[1]]
 	r := Result{Best: best, Scores: scores, Signals: f.signals}
@@ -87,6 +89,8 @@ type features struct {
 	sources, sinks int
 	lanes          int
 	foreign        []string // shapes or arrows of other notations
+	classes        int      // UML class shapes
+	umlWires       int      // wires with UML relation ends
 	lifelines      int
 	handLifelines  int
 	messages       int
@@ -108,6 +112,9 @@ func measure(d *segment.Diagram) *features {
 		if why := foreignShape(n); why != "" {
 			f.foreign = append(f.foreign, why)
 		}
+		if IsClass(n) {
+			f.classes++
+		}
 		switch {
 		case n.Shape == "umlLifeline":
 			f.lifelines++
@@ -119,6 +126,9 @@ func measure(d *segment.Diagram) *features {
 	for _, w := range d.Wires {
 		if why := foreignWire(w); why != "" {
 			f.foreign = append(f.foreign, why)
+			if strings.HasPrefix(why, "UML") {
+				f.umlWires++
+			}
 		}
 		if w.Src == nil || w.Dst == nil || w.Src.Container || w.Dst.Container {
 			continue
@@ -202,6 +212,9 @@ func measure(d *segment.Diagram) *features {
 	if f.lifelines+f.handLifelines > 0 {
 		f.signal("%d lifelines, %d messages", f.lifelines+f.handLifelines, f.messages)
 	}
+	if f.classes > 0 {
+		f.signal("%s, %d UML relations", plural(f.classes, "class"), f.umlWires)
+	}
 	if len(f.foreign) > 0 {
 		f.signal("other notation: %s", strings.Join(dedupe(f.foreign), ", "))
 	}
@@ -246,6 +259,31 @@ func (f *features) sequenceScore() float64 {
 		share = math.Min(1, float64(f.messages)/float64(others))
 	}
 	return 0.55 + 0.45*share
+}
+
+// classScore scores a UML class diagram: most shapes are classes, and the
+// wires between them use UML relation ends.
+func (f *features) classScore() float64 {
+	if f.classes < 2 || f.leaves == 0 {
+		return 0
+	}
+	share := float64(f.classes) / float64(f.leaves)
+	rel := 0.5
+	if f.umlWires > 0 {
+		rel = 1
+	}
+	s := 0.6*share + 0.4*rel
+	if f.lifelines > 0 || f.handLifelines > 0 || f.lanes > 0 {
+		s *= 0.5
+	}
+	return s
+}
+
+// IsClass reports the editor's UML class shape: a swimlane stacking its rows
+// vertically.
+func IsClass(n *view.Node) bool {
+	st := n.Style
+	return n.Shape == "swimlane" && st.Value("childLayout", "") == "stackLayout" && st.Value("horizontalStack", "1") == "0"
 }
 
 // foreignShape names shapes of notations that are not flows.

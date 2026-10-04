@@ -37,6 +37,8 @@ func corpus(t *testing.T) []input {
 		out = append(out, input{filepath.Base(f), data})
 	}
 	clean, _ := filepath.Glob("corpus/clean/flowcast/*/*.drawio")
+	others, _ := filepath.Glob("corpus/clean/[^f]*/*.drawio")
+	clean = append(others, clean...)
 	if testing.Short() {
 		clean = clean[:10]
 	}

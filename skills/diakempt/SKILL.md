@@ -66,6 +66,10 @@ What the report says, and what to do:
   result scored worse than the original, or broke the order of shapes, so a
   milder one (or none) was kept. Explain the reason given. Offer --force only
   if the user wants to see the worse result anyway.
+- "classlayout not possible": the class diagram has classes inside a
+  container (a package), a wire with a free end, or a wire ending on a text.
+  The general tidy still ran; attaching the wire in draw.io lets the class
+  layout run next time.
 - "flowlayout not possible" or "relayout not possible": the engine cannot
   represent the diagram. Map the reason to advice:
   - a wire with a free end: attach it in draw.io, or accept the general tidy;
@@ -78,6 +82,9 @@ What the report says, and what to do:
   --type unknown.
 - Kind sequence: there is no sequence optimizer yet; only the general tidy
   runs. Say so.
+- Kind unknown but the user says it is a class diagram drawn with plain boxes:
+  classlayout only recognizes the editor's class shape; --type class forces
+  the class layout on whatever shapes are there.
 - input.embedded error (.drawio.svg or .drawio.png): convert first, for
   example with drawio -x -f xml -o file.drawio file.drawio.svg, then tidy the
   .drawio file.

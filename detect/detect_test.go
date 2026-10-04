@@ -48,7 +48,7 @@ var want = map[string]string{
 	"architecture":       Unknown,
 	"network":            Unknown,
 	"mindmap":            Unknown,
-	"class":              Unknown,
+	"class":              Class,
 	"er":                 Unknown,
 	"state":              Unknown,
 }

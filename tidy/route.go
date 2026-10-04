@@ -602,3 +602,19 @@ func (d *Diagram) routeStraight(w *Wire) bool {
 	}
 	return true
 }
+
+// RouteWire gives one wire a fresh route around the shapes: right angles
+// through fixed ports for an orthogonal wire, waypoints around obstacles for
+// any other. It reports whether a route was found.
+func (d *Diagram) RouteWire(w *Wire) bool {
+	var ok bool
+	if view.IsOrthogonal(w.Style) {
+		ok = d.routeOrthogonal(w)
+	} else {
+		ok = d.routeStraight(w)
+	}
+	if ok {
+		w.Routed = true
+	}
+	return ok
+}

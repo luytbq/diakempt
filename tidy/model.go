@@ -21,6 +21,9 @@ type Diagram struct {
 	Wires []*Wire
 	byV   map[*view.Node]*Node
 	tm    *text.Measure
+	// Others are the boxes of everything else on the page: other diagrams and
+	// decoration. Operations that look for empty space treat them as taken.
+	Others []geom.Rect
 }
 
 // Node is a node's working geometry.

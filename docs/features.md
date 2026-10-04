@@ -36,7 +36,7 @@ leaves a half-written file.
 
 Report fields per file: pages, diagrams, decoration, snap (snapped, ambiguous,
 details), normalized, issues (code, severity, page, diagram, cells, message),
-changed. Per diagram: id, page, index, name, kind, confidence, signals, forced,
+changed. Per diagram: id, page, index, name, shapes, wires, kind, confidence, signals, forced,
 level, applied, step_downs, operations, details, before, after. Metrics:
 wires_through_nodes, node_overlaps, label_overlaps, wire_crossings, wire_overlaps,
 area, wire_length, score.
@@ -87,7 +87,7 @@ wire, end, target and distance.
 
 Operations, by the lowest level that runs them:
 
-- safe: snap, flowlayout, separate, containers, reroute, labels
+- safe: snap, flowlayout, classlayout, separate, containers, reroute, labels
 - normal: align, resize, samesize, spacing, compact, grid
 - aggressive: normalize, relayout
 
@@ -122,6 +122,25 @@ the reason in the report: a wire with a free end or ending on a container, a
 wire looping to its own shape, containers that are not lanes or their pool, a
 shape outside every lane, or a table that does not validate. A result that
 scores worse than the original also falls back.
+
+### classlayout (all levels)
+
+A diagram detected (or forced) as a class diagram is laid out from scratch:
+
+- ranks from the top: the target of a generalization or realization (hollow
+  triangle) above its source, the diamond end of a composition or aggregation
+  above the other end where that does not contradict a generalization; a class
+  with neither sits in the rank of its median neighbor;
+- within a rank, classes ordered to reduce crossings (sweeps over the average
+  position of neighbors), each class centered under the classes it hangs from;
+- generalizations between adjacent ranks drawn as trunks: from the child's
+  top up to a level in the gap, across, and into the parent's bottom center,
+  shared by all children of one parent;
+- every other relation routed around the classes.
+
+Classes keep their size, since their rows set it, and the diagram keeps its
+top-left corner. Classes inside a container, wires with a free end or ending on
+a text fall back to the general operations, as does a result that scores worse.
 
 ### Diagrams and decoration
 
@@ -196,7 +215,7 @@ step apart) become the median gap.
 
 An empty band across the whole diagram wider than four --min-gap closes down
 to two --min-gap. Only a container's edges block a band; its empty inside does
-not.
+not. Other diagrams and decoration on the page block bands too.
 
 ### grid (normal)
 
@@ -225,10 +244,20 @@ An unknown diagram (not a sequence) is laid out from scratch by the engine as
 a flowchart, or as a swimlane diagram when its shapes sit in swimlanes, with
 the same rules and fallbacks as flowlayout. Wires without an arrowhead (or
 with one at each end) run the way the flow goes; when no wire has a direction,
-they run away from the first shape in reading order, level by level, so the
-diagram lays out as a tree. Shapes without text keep their drawn size.
+they run away from the best connected shape (the first in document order on a
+tie), level by level, so the diagram lays out as a tree from its hub, with
+branches in document order. Shapes without text keep their drawn size.
 Diagrams in containers that are not lanes, such as grouped architecture tiers,
 cannot be relaid out and get the normal operations.
+
+### Passes
+
+One pass over a page can make work for another: moving shapes can bring a
+free wire end within snap reach, and a new attachment joins two diagrams. Each
+page is processed again until a pass changes nothing (at most three passes;
+normalize runs on the first only). The report shows the diagrams of the last
+pass; a diagram whose members did not change keeps its metrics from before the
+first pass, and the changes of all passes add up.
 
 ### Score and stepping down
 
@@ -266,9 +295,12 @@ learning, so the report can say why (--verbose lists the signals):
 - swimlane: the same, inside swimlane containers (a pool with lanes, or
   swimlanes side by side as bands);
 - sequence: two or more lifelines (the UML lifeline shape, or dashed vertical
-  lines without arrowheads) with horizontal messages between them.
+  lines without arrowheads) with horizontal messages between them;
+- class: two or more UML classes (the editor's class shape: a swimlane
+  stacking its rows), most shapes being classes, with UML relation ends on the
+  wires.
 
-Shapes or arrows of other notations (UML classes, ER tables and relations,
+For the flow kinds, shapes or arrows of other notations (UML classes, ER tables and relations,
 state machine start and end states, network and cloud icons, mind map links,
 UML associations and inheritance) and containers that are not lanes push the
 flow scores down.
@@ -278,8 +310,9 @@ ahead of the next kind. Otherwise the diagram is unknown, reported with medium
 or low confidence and, at medium, the kind it came closest to. Diagrams too
 small to judge (fewer than three shapes or two directed wires) are unknown.
 
-Flowcharts and swimlanes are laid out from scratch (see flowlayout below);
-sequence and unknown diagrams get the general operations. --type overrides the
+Flowcharts and swimlanes are laid out from scratch (see flowlayout below),
+class diagrams by classlayout; sequence and unknown diagrams get the general
+operations. --type overrides the
 detected kind, so --type flowchart or --type swimlane forces a relayout attempt
 and --type unknown prevents one.
 

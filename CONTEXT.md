@@ -55,8 +55,12 @@ out; it moves with its nearest diagram.
 
 **Segment** - splitting a page into diagrams and decoration.
 
-**Kind** - what sort of diagram something is: flowchart, swimlane, sequence, or
-unknown.
+**Kind** - what sort of diagram something is: flowchart, swimlane, sequence,
+class, or unknown.
+
+**Trunk** - the shared path the generalizations of one parent class take: up
+from each child to a level in the gap between ranks, across, and into the
+parent from below.
 
 **Detect** - choosing a diagram's kind by rule-based scoring, with a confidence. A
 kind that leads to full relayout needs a high score and a clear margin; otherwise

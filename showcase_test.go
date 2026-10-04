@@ -47,6 +47,9 @@ var examples = []example{
 	{"17-state-machine-aggressive", "corpus/clean/state/02-states-6.drawio", 4, 40, 0.6, Aggressive},
 	{"18-normalize-aggressive", "corpus/cases/normalize.drawio", 0, 0, 0, Aggressive},
 	{"19-network-aggressive", "corpus/clean/network/02-lan-8.drawio", 2, 30, 0.6, Aggressive},
+	{"20-class-bank", "corpus/clean/class/03-bank.drawio", 0, 0, 0, Normal},
+	{"21-class-bank-scattered", "corpus/clean/class/04-bank-scattered.drawio", 0, 0, 0, Normal},
+	{"22-class-bank-messified", "corpus/clean/class/03-bank.drawio", 6, 60, 0.7, Normal},
 }
 
 // TestShowcase writes showcase/NAME.before.drawio and NAME.after.drawio for

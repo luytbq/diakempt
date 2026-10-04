@@ -328,7 +328,7 @@ func median(v []float64) float64 {
 
 // Compact closes empty bands wider than four minimum gaps, across the whole
 // diagram, down to two minimum gaps. A band is empty when no shape, container
-// edge or wire point lies in it.
+// edge or wire point lies in it, and nothing else on the page either.
 func (d *Diagram) Compact(gap float64, log *Log) {
 	for _, ax := range []axis{axisX, axisY} {
 		for iter := 0; iter < 50; iter++ {
@@ -341,6 +341,9 @@ func (d *Diagram) Compact(gap float64, log *Log) {
 					continue
 				}
 				spans = append(spans, span{start(n.Box, ax), end(n.Box, ax)})
+			}
+			for _, o := range d.Others {
+				spans = append(spans, span{start(o, ax), end(o, ax)})
 			}
 			for _, w := range d.Wires {
 				for _, p := range w.Path() {

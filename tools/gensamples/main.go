@@ -23,7 +23,7 @@ func main() {
 		"architecture": {arch(3, 2), arch(4, 3), arch(2, 4)},
 		"network":      {network(5), network(8)},
 		"mindmap":      {mindmap(5), mindmap(8)},
-		"class":        {class(3), class(5)},
+		"class":        {class(3), class(5), classModel("bank", false), classModel("bank-scattered", true)},
 		"er":           {er(3), er(4)},
 		"state":        {state(4), state(6)},
 		"handflow":     {handflow("basic", 12, false), handflow("library", 12, true), handflow("big-font", 16, false)},
@@ -365,6 +365,107 @@ func handflow(slug string, font float64, library bool) func() *page {
 		p.edge("1", "Yes", e, ok, pay)
 		p.edge("1", "", e, reject, done, [2]float64{625, 552})
 		p.edge("1", "", e, pay, done)
+		return p
+	}
+}
+
+// classBox draws a UML class with the editor's class shape: a title, attribute
+// rows, a divider and method rows. The height follows the rows.
+func (p *page) classBox(name string, attrs, methods []string, x, y float64) string {
+	const row, w = 26.0, 180.0
+	h := 26 + row*float64(len(attrs)+len(methods)) + 8
+	c := p.vertex("1", name, "swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;", x, y, w, h)
+	rowStyle := "text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;"
+	ry := 26.0
+	for _, a := range attrs {
+		p.vertex(c, a, rowStyle, 0, ry, w, row)
+		ry += row
+	}
+	p.vertex(c, "", "line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;", 0, ry, w, 8)
+	ry += 8
+	for _, m := range methods {
+		p.vertex(c, m, rowStyle, 0, ry, w, row)
+		ry += row
+	}
+	return c
+}
+
+// endLabel puts a multiplicity next to one end of a wire, as the editor's
+// association shapes do: at -1 for the source end, 1 for the target end.
+func (p *page) endLabel(wire, value string, at float64) {
+	id := p.id()
+	align := "left"
+	if at > 0 {
+		align = "right"
+	}
+	p.cells = append(p.cells, fmt.Sprintf(`        <mxCell id="%s" value="%s" style="edgeLabel;resizable=0;html=1;align=%s;verticalAlign=bottom;" vertex="1" connectable="0" parent="%s">
+          <mxGeometry x="%s" relative="1" as="geometry" />
+        </mxCell>`, id, esc(value), align, wire, num(at)))
+}
+
+// classModel draws a banking domain model: an interface and an abstract class
+// with subclasses, compositions, an aggregation, associations with
+// multiplicities and a dependency. scattered places the classes the way a
+// model grows over time, out of any order.
+func classModel(slug string, scattered bool) func() *page {
+	return func() *page {
+		p := &page{slug: slug, title: "Banking domain"}
+		pos := map[string][2]float64{
+			"Bank": {320, 40}, "Branch": {320, 260}, "Customer": {40, 260}, "Account": {600, 260},
+			"Checking": {440, 520}, "Savings": {660, 520}, "Credit": {880, 520},
+			"Payable": {1000, 260}, "Invoice": {1100, 520}, "Transaction": {600, 760},
+		}
+		if scattered {
+			pos = map[string][2]float64{
+				"Bank": {700, 600}, "Branch": {40, 40}, "Customer": {420, 380}, "Account": {60, 520},
+				"Checking": {700, 60}, "Savings": {380, 40}, "Credit": {1000, 380},
+				"Payable": {960, 40}, "Invoice": {420, 760}, "Transaction": {40, 820},
+			}
+		}
+		at := func(n string) (float64, float64) { return pos[n][0], pos[n][1] }
+		id := map[string]string{}
+		x, y := at("Bank")
+		id["Bank"] = p.classBox("Bank", []string{"- name: String", "- swift: String"}, []string{"+ openBranch(): Branch"}, x, y)
+		x, y = at("Branch")
+		id["Branch"] = p.classBox("Branch", []string{"- code: String", "- address: String"}, []string{"+ accounts(): List"}, x, y)
+		x, y = at("Customer")
+		id["Customer"] = p.classBox("Customer", []string{"- id: UUID", "- name: String", "- email: String"}, []string{"+ open(type): Account"}, x, y)
+		x, y = at("Account")
+		id["Account"] = p.classBox("<i>Account</i>", []string{"# number: String", "# balance: Money"}, []string{"+ deposit(m: Money)", "+ withdraw(m: Money)"}, x, y)
+		x, y = at("Checking")
+		id["Checking"] = p.classBox("CheckingAccount", []string{"- overdraft: Money"}, []string{"+ writeCheck()"}, x, y)
+		x, y = at("Savings")
+		id["Savings"] = p.classBox("SavingsAccount", []string{"- rate: Percent"}, []string{"+ accrue()"}, x, y)
+		x, y = at("Credit")
+		id["Credit"] = p.classBox("CreditAccount", []string{"- limit: Money"}, []string{"+ statement()"}, x, y)
+		x, y = at("Payable")
+		id["Payable"] = p.classBox("&laquo;interface&raquo;<br>Payable", nil, []string{"+ amountDue(): Money", "+ pay(m: Money)"}, x, y)
+		x, y = at("Invoice")
+		id["Invoice"] = p.classBox("Invoice", []string{"- due: Date", "- total: Money"}, []string{"+ send()"}, x, y)
+		x, y = at("Transaction")
+		id["Transaction"] = p.classBox("Transaction", []string{"- at: Instant", "- amount: Money"}, []string{"+ reverse()"}, x, y)
+		inherit := "endArrow=block;endSize=16;endFill=0;html=1;"
+		realize := "endArrow=block;dashed=1;endFill=0;endSize=12;html=1;"
+		compose := "endArrow=none;html=1;startArrow=diamondThin;startSize=14;startFill=1;edgeStyle=orthogonalEdgeStyle;"
+		aggregate := "endArrow=open;html=1;endSize=12;startArrow=diamondThin;startSize=14;startFill=0;edgeStyle=orthogonalEdgeStyle;"
+		assoc := "endArrow=open;html=1;endSize=12;edgeStyle=orthogonalEdgeStyle;"
+		depend := "endArrow=open;endSize=12;dashed=1;html=1;"
+		p.edge("1", "", inherit, id["Checking"], id["Account"])
+		p.edge("1", "", inherit, id["Savings"], id["Account"])
+		p.edge("1", "", inherit, id["Credit"], id["Account"])
+		p.edge("1", "", realize, id["Credit"], id["Payable"])
+		p.edge("1", "", realize, id["Invoice"], id["Payable"])
+		w := p.edge("1", "", compose, id["Bank"], id["Branch"])
+		p.endLabel(w, "1", -1)
+		p.endLabel(w, "1..*", 1)
+		w = p.edge("1", "", aggregate, id["Branch"], id["Account"])
+		p.endLabel(w, "0..*", 1)
+		w = p.edge("1", "owns", assoc, id["Customer"], id["Account"])
+		p.endLabel(w, "1", -1)
+		p.endLabel(w, "1..*", 1)
+		w = p.edge("1", "", assoc, id["Customer"], id["Invoice"])
+		p.endLabel(w, "0..*", 1)
+		p.edge("1", "", depend, id["Transaction"], id["Account"])
 		return p
 	}
 }

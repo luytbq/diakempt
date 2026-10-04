@@ -36,6 +36,8 @@ type Diagram struct {
 	Page       int      `json:"page"`
 	Index      int      `json:"index"`
 	Name       string   `json:"name"`
+	Shapes     int      `json:"shapes"`
+	Wires      int      `json:"wires"`
 	Kind       string   `json:"kind"`
 	Confidence string   `json:"confidence"`
 	Signals    []string `json:"signals,omitempty"`
