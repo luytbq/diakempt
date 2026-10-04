@@ -20,6 +20,12 @@ type Row struct {
 	// iterate randomly, while warnings about unknown keys must follow the order the
 	// user wrote them in.
 	MetaKeys []string
+	// Size, when set, is the element's box as drawn, used instead of measuring
+	// its text: icons, images and shapes whose label sits outside them.
+	Size [2]float64
+	// FontScale is the element's font size over 12, the size the width table
+	// measures; zero means 1.
+	FontScale float64
 }
 
 // Text joins the content lines and trims whitespace. An empty result means the

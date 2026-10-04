@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/luytbq/diakempt/doc"
 	"github.com/luytbq/diakempt/engine/layout"
 	"github.com/luytbq/diakempt/engine/model"
 	"github.com/luytbq/diakempt/engine/schema"
@@ -353,7 +354,8 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 	var emit func(n *view.Node)
 	emit = func(n *view.Node) {
 		written[n] = true
-		p.add(model.Row{ID: ids[n], Type: elementType(n, ins[n], outs[n]), Parent: laneIDs[n.Parent], Lines: lines(n.Text)})
+		p.add(model.Row{ID: ids[n], Type: elementType(n, ins[n], outs[n]), Parent: laneIDs[n.Parent], Lines: lines(n.Text),
+			Size: fixedSize(n), FontScale: fontScale(n.Style)})
 		for _, a := range attached[n] {
 			typ := "text"
 			if isDB(a) {
@@ -361,7 +363,8 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 			}
 			written[a] = true
 			p.add(model.Row{ID: ids[a], Type: typ, Parent: laneIDs[a.Parent], Lines: lines(a.Text),
-				Meta: map[string]string{"attach": ids[n]}, MetaKeys: []string{"attach"}})
+				Meta: map[string]string{"attach": ids[n]}, MetaKeys: []string{"attach"},
+				Size: fixedSize(a), FontScale: fontScale(a.Style)})
 		}
 		for _, e := range outs[n] {
 			eid++
@@ -373,7 +376,11 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 				meta["back"] = "true"
 				keys = append(keys, "back")
 			}
-			p.add(model.Row{ID: e.id, Type: "edge", Lines: lines(e.w.Text), Meta: meta, MetaKeys: keys})
+			st := e.w.Style
+			if len(e.w.Labels) > 0 {
+				st = e.w.Labels[0].Style()
+			}
+			p.add(model.Row{ID: e.id, Type: "edge", Lines: lines(e.w.Text), Meta: meta, MetaKeys: keys, FontScale: fontScale(st)})
 		}
 		for _, e := range outs[n] {
 			if !written[e.dst] && ready(e.dst) {
@@ -415,6 +422,44 @@ func lines(s string) []string {
 		return nil
 	}
 	return strings.Split(s, "\n")
+}
+
+// fixedSize keeps the drawn size of shapes whose size does not come from their
+// text: images, icons from stencil libraries, and shapes whose label sits
+// outside them. A label below or above the shape is included, so the engine
+// keeps wires and neighbors clear of it.
+func fixedSize(n *view.Node) [2]float64 {
+	st := n.Style
+	keep := n.Shape == "image" || n.Shape == "umlActor" || st.Value("image", "") != "" ||
+		(strings.HasPrefix(n.Shape, "mxgraph.") && !strings.HasPrefix(n.Shape, "mxgraph.flowchart.")) ||
+		st.Value("verticalLabelPosition", "middle") != "middle" || st.Value("labelPosition", "center") != "center"
+	if !keep {
+		return [2]float64{}
+	}
+	lw, lh := outsideLabel(n)
+	return [2]float64{math.Max(n.Box.W, lw), n.Box.H + lh}
+}
+
+// outsideLabel returns the size of a label drawn below or above its shape,
+// zero for any other label.
+func outsideLabel(n *view.Node) (w, h float64) {
+	pos := n.Style.Value("verticalLabelPosition", "middle")
+	if (pos != "bottom" && pos != "top") || n.Text == "" {
+		return 0, 0
+	}
+	tm := text.Default()
+	s := fontScale(n.Style)
+	tw, th := tm.Box(lines(n.Text))
+	return tw*s + 4, th*s + 4
+}
+
+// fontScale is the style's font size over the 12px the width table measures.
+func fontScale(st doc.Style) float64 {
+	size := geom.ParseNumber(st.Value("fontSize", "12"))
+	if size <= 0 {
+		return 1
+	}
+	return size / 12
 }
 
 func isDB(n *view.Node) bool {
@@ -518,6 +563,7 @@ func (p *Plan) Apply(d *tidy.Diagram, r layout.Result, sd *segment.Diagram) {
 		}
 	}
 	shapes := map[string]layout.Shape{}
+	boxes := map[string]geom.Rect{} // the engine's box, label included
 	for _, it := range r.Items {
 		shapes[it.ID] = it.Shape
 		v := p.nodes[it.ID]
@@ -529,8 +575,9 @@ func (p *Plan) Apply(d *tidy.Diagram, r layout.Result, sd *segment.Diagram) {
 			continue
 		}
 		o := at(it.X, it.Y)
-		n.Box = geom.Rect{X: o.X, Y: o.Y, W: it.W, H: it.H}
-		if v.Style.Value("html", "0") == "1" && v.Style.Value("whiteSpace", "") != "wrap" {
+		n.Box = shapePart(v, geom.Rect{X: o.X, Y: o.Y, W: it.W, H: it.H})
+		boxes[it.ID] = geom.Rect{X: o.X, Y: o.Y, W: it.W, H: it.H}
+		if v.Style.Value("html", "0") == "1" && v.Style.Value("whiteSpace", "") != "wrap" && fixedSize(v) == [2]float64{} {
 			n.SetStyle = map[string]string{"whiteSpace": "wrap"}
 		}
 	}
@@ -560,9 +607,13 @@ func (p *Plan) Apply(d *tidy.Diagram, r layout.Result, sd *segment.Diagram) {
 			exitShape, entryShape = entryShape, exitShape
 			pos = -pos
 		}
+		srcID, dstID := pe.Src, pe.Dst
+		if e.reversed {
+			srcID, dstID = dstID, srcID
+		}
 		w.Points = pts
-		setAnchor(w, "exit", exit, exitShape)
-		setAnchor(w, "entry", entry, entryShape)
+		setAnchor(w, "exit", exit, exitShape, boxes[srcID], d.NodeFor(p.nodes[srcID]))
+		setAnchor(w, "entry", entry, entryShape, boxes[dstID], d.NodeFor(p.nodes[dstID]))
 		w.Routed = true
 		if pe.Label != nil {
 			w.PlaceLabel(pos, off)
@@ -570,16 +621,44 @@ func (p *Plan) Apply(d *tidy.Diagram, r layout.Result, sd *segment.Diagram) {
 	}
 }
 
-func setAnchor(w *tidy.Wire, prefix string, frac [2]float64, s layout.Shape) {
+// shapePart places a shape inside the engine's box: the whole box, or for a
+// label drawn below (above) the shape, the top (bottom) part at the shape's own
+// size, centered.
+func shapePart(v *view.Node, box geom.Rect) geom.Rect {
+	lw, lh := outsideLabel(v)
+	if lw == 0 && lh == 0 {
+		return box
+	}
+	r := geom.Rect{X: box.X + (box.W-v.Box.W)/2, Y: box.Y, W: v.Box.W, H: v.Box.H}
+	if v.Style.Value("verticalLabelPosition", "") == "top" {
+		r.Y = box.Bottom() - v.Box.H
+	}
+	return r
+}
+
+// setAnchor fixes a wire end at the engine's port. The port is given relative
+// to the engine's box; when the drawn shape is only part of that box, the
+// fraction is clamped to the shape and the rest becomes a pixel offset, so the
+// wire still stops outside the label.
+func setAnchor(w *tidy.Wire, prefix string, frac [2]float64, s layout.Shape, box geom.Rect, n *tidy.Node) {
+	dx, dy := 0.0, 0.0
+	if n != nil && box != n.Box && n.Box.W > 0 && n.Box.H > 0 {
+		pt := geom.Point{X: box.X + frac[0]*box.W, Y: box.Y + frac[1]*box.H}
+		fx := math.Max(0, math.Min(1, (pt.X-n.Box.X)/n.Box.W))
+		fy := math.Max(0, math.Min(1, (pt.Y-n.Box.Y)/n.Box.H))
+		dx, dy = pt.X-(n.Box.X+fx*n.Box.W), pt.Y-(n.Box.Y+fy*n.Box.H)
+		frac = [2]float64{fx, fy}
+	}
 	w.Style.Set(prefix+"X", geom.Format(frac[0]))
 	w.Style.Set(prefix+"Y", geom.Format(frac[1]))
-	w.Style.Set(prefix+"Dx", "0")
-	w.Style.Set(prefix+"Dy", "0")
+	w.Style.Set(prefix+"Dx", geom.Format(dx))
+	w.Style.Set(prefix+"Dy", geom.Format(dy))
 	// A port off the midpoint of a diamond or ellipse side is computed on the
 	// outline and rounded, which can leave it a hair inside the shape; draw.io
 	// would project it back along a ray from the center and add a jog, so it is
 	// told to use the point as given.
-	if offOutline(s, frac) {
+	// draw.io applies the pixel offset only to a port taken as given.
+	if offOutline(s, frac) || dx != 0 || dy != 0 {
 		w.Style.Set(prefix+"Perimeter", "0")
 	} else {
 		w.Style.Del(prefix + "Perimeter")

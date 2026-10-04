@@ -151,7 +151,10 @@ func newLayout(rows []model.Row, cfg Config, tm *text.Measure) *Layout {
 		if attach != "" {
 			laneID = byID[attach].Parent
 		}
-		lines, w, h := SizeItem(tm, cfg, r.Type, r.Lines)
+		lines, w, h := SizeItem(scaled(tm, r.FontScale), cfg, r.Type, r.Lines)
+		if r.Size[0] > 0 && r.Size[1] > 0 {
+			w, h = r.Size[0], r.Size[1]
+		}
 		it := &Item{
 			ID: r.ID, Type: r.Type, Lane: l.laneIdx[laneID], Lines: lines, W: w, H: h,
 			Order: r.Idx, Highlight: hasStyle(r, "highlight"), Attach: attach,
@@ -163,7 +166,7 @@ func newLayout(rows []model.Row, cfg Config, tm *text.Measure) *Layout {
 		if r.Type != "edge" {
 			continue
 		}
-		lines, lw, lh := SizeLabel(tm, cfg, r.Lines)
+		lines, lw, lh := SizeLabel(scaled(tm, r.FontScale), cfg, r.Lines)
 		e := &Edge{
 			ID: r.ID, Src: r.Meta["from"], Dst: r.Meta["to"], Lines: lines, LW: lw, LH: lh,
 			Order: r.Idx, Dashed: hasStyle(r, "dashed"), Highlight: hasStyle(r, "highlight"),
@@ -178,6 +181,17 @@ func newLayout(rows []model.Row, cfg Config, tm *text.Measure) *Layout {
 		l.ins[e.Dst] = append(l.ins[e.Dst], e)
 	}
 	return l
+}
+
+// scaled returns a measure for text drawn at s times the table's font size.
+func scaled(tm *text.Measure, s float64) *text.Measure {
+	if s <= 0 || s == 1 {
+		return tm
+	}
+	c := *tm
+	c.Size *= s
+	c.LineH *= s
+	return &c
 }
 
 func hasStyle(r model.Row, v string) bool {

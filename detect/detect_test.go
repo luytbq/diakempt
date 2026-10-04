@@ -44,6 +44,7 @@ var want = map[string]string{
 	"flowcast/flowchart": Flowchart,
 	"flowcast/swimlane":  Swimlane,
 	"sequence":           Sequence,
+	"handflow":           Flowchart,
 	"architecture":       Unknown,
 	"network":            Unknown,
 	"mindmap":            Unknown,

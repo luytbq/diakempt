@@ -26,6 +26,7 @@ func main() {
 		"class":        {class(3), class(5)},
 		"er":           {er(3), er(4)},
 		"state":        {state(4), state(6)},
+		"handflow":     {handflow("basic", 12, false), handflow("library", 12, true), handflow("big-font", 16, false)},
 	} {
 		dir := filepath.Join(*out, kind)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -326,6 +327,44 @@ func state(n int) func() *page {
 			p.edge("1", "retry", "edgeStyle=orthogonalEdgeStyle;html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#ff0000;", ids[i], ids[i-2], [2]float64{200 + float64(i)*170, 250}, [2]float64{200 + float64(i-2)*170, 250})
 		}
 		p.edge("1", "", "edgeStyle=orthogonalEdgeStyle;html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#ff0000;", ids[n-1], end)
+		return p
+	}
+}
+
+// handflow draws an approval flowchart the way people do in the editor: shapes
+// placed by hand slightly off a grid, default styles (or the flowchart
+// library), an actor icon with its label below it, and a chosen font size.
+func handflow(slug string, font float64, library bool) func() *page {
+	return func() *page {
+		p := &page{slug: slug, title: "Expense approval"}
+		fs := ""
+		if font != 12 {
+			fs = fmt.Sprintf("fontSize=%s;", num(font))
+		}
+		proc, dec, term := "rounded=1;whiteSpace=wrap;html=1;", "rhombus;whiteSpace=wrap;html=1;", "ellipse;whiteSpace=wrap;html=1;"
+		if library {
+			proc = "shape=mxgraph.flowchart.process;whiteSpace=wrap;html=1;"
+			dec = "shape=mxgraph.flowchart.decision;whiteSpace=wrap;html=1;"
+			term = "shape=mxgraph.flowchart.terminator;whiteSpace=wrap;html=1;"
+		}
+		actor := p.vertex("1", "Employee", "shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;"+fs, 233, 20, 30, 60)
+		submit := p.vertex("1", "Submit expense report", proc+fs, 188, 125, 130, 55)
+		check := p.vertex("1", "Amount over 500?", dec+fs, 178, 220, 150, 80)
+		manager := p.vertex("1", "Manager approves", proc+fs, 380, 232, 130, 55)
+		ok := p.vertex("1", "Approved?", dec+fs, 382, 330, 125, 75)
+		reject := p.vertex("1", "Notify rejection", proc+fs, 560, 345, 130, 50)
+		pay := p.vertex("1", "Finance pays out", proc+fs, 195, 430, 120, 55)
+		done := p.vertex("1", "Done", term+fs, 215, 530, 80, 45)
+		e := "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" + fs
+		p.edge("1", "", e, actor, submit)
+		p.edge("1", "", e, submit, check)
+		p.edge("1", "Yes", e, check, manager)
+		p.edge("1", "No", e, check, pay)
+		p.edge("1", "", e, manager, ok)
+		p.edge("1", "No", e, ok, reject)
+		p.edge("1", "Yes", e, ok, pay)
+		p.edge("1", "", e, reject, done, [2]float64{625, 552})
+		p.edge("1", "", e, pay, done)
 		return p
 	}
 }

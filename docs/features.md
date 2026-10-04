@@ -107,8 +107,13 @@ order, the main branch (the target most in line with its source) and the back
 edges (a depth-first walk in reading order).
 
 The result keeps the diagram's top-left corner, the shapes' styles and text,
-and gives every wire right-angle waypoints through fixed ports. Shapes with
-HTML labels get whiteSpace=wrap so text wraps inside the computed size.
+and gives every wire right-angle waypoints through fixed ports. Shapes are
+sized from their text, measured at their own fontSize; shapes with HTML labels
+get whiteSpace=wrap so text wraps inside the computed size. Images, stencil
+icons (other than the flowchart library) and shapes whose label sits outside
+them keep their drawn size; a label below or above such a shape is reserved
+room, and wires stop beyond it (an exitDy or entryDy offset with
+exitPerimeter=0 or entryPerimeter=0).
 
 Diagrams the engine cannot represent fall back to the general operations, with
 the reason in the report: a wire with a free end or ending on a container, a

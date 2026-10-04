@@ -264,7 +264,7 @@ func foreignShape(n *view.Node) string {
 		return "network or cloud icon"
 	case st.Value("treeFolding", "0") == "1":
 		return "mind map"
-	case strings.HasPrefix(n.Shape, "umlActor") || n.Shape == "umlFrame":
+	case n.Shape == "umlFrame":
 		return "UML"
 	}
 	return ""
