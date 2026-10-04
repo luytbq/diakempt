@@ -1,6 +1,6 @@
 # diakempt design
 
-Status: design agreed, nothing implemented yet.
+Status: v1 implemented. What exists today is listed in features.md; this document keeps the reasoning and the later phases.
 
 This document is for the person who builds diakempt v1. It records what the tool
 does, the rules it follows, and the order in which v1 is built. Decisions that were

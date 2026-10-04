@@ -18,6 +18,9 @@ agents to it, so it must stay true.
 - Any change that adds, removes or changes a capability updates docs/features.md
   in the same commit.
 - Planned work does not go into features.md; it belongs in docs/design.md.
+- The agent skill in skills/diakempt/SKILL.md points to features.md instead of
+  repeating it. A change that adds a report message, an issue code or a
+  failure reason also adds its handling to the skill's playbook.
 
 ## Core boundary
 
@@ -48,3 +51,6 @@ that supersedes it.
     go build ./...
     go vet ./...
     go test ./...
+
+go test also writes showcase/NAME.before.drawio and NAME.after.drawio for a
+fixed set of examples (TestShowcase), for judging results in draw.io.
