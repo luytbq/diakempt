@@ -5,6 +5,7 @@ import (
 
 	"github.com/luytbq/diakempt/detect"
 	"github.com/luytbq/diakempt/doc"
+	"github.com/luytbq/diakempt/normalize"
 	"github.com/luytbq/diakempt/relayout"
 	"github.com/luytbq/diakempt/report"
 	"github.com/luytbq/diakempt/segment"
@@ -50,6 +51,12 @@ func Tidy(data []byte, opt Options) (Result, error) {
 			rep.Snap.Details = append(rep.Snap.Details, r.Details...)
 			rep.Issues = append(rep.Issues, r.Issues...)
 		}
+		if lv == Aggressive && opt.enabled("normalize", lv) {
+			if ds := normalize.Run(p); len(ds) > 0 {
+				rep.Normalized = append(rep.Normalized, ds...)
+				rep.Changed = true
+			}
+		}
 		seg := segment.Split(view.Build(p))
 		rep.Decoration += len(seg.Decoration) + len(seg.LooseWires)
 		for _, sd := range seg.Diagrams {
@@ -80,20 +87,35 @@ func tidyDiagram(sd *segment.Diagram, tm *text.Measure, lv Level, opt Options) (
 	orig := w.Save()
 	dr.Before = w.Measure()
 	dr.After = dr.Before
-	if (dr.Kind == detect.Flowchart || dr.Kind == detect.Swimlane) && opt.enabled("flowlayout", lv) {
+	flow := (dr.Kind == detect.Flowchart || dr.Kind == detect.Swimlane) && opt.enabled("flowlayout", lv)
+	free := dr.Kind == detect.Unknown && opt.enabled("relayout", lv)
+	if flow || free {
+		op := "flowlayout"
+		withLanes := dr.Kind == detect.Swimlane
+		if free {
+			op = "relayout"
+			withLanes = hasLanes(sd)
+		}
 		reason := ""
-		plan, err := relayout.Run(w, sd, dr.Kind == detect.Swimlane, tm)
+		plan, err := relayout.Run(w, sd, withLanes, tm)
 		if err != nil {
-			reason = "flowlayout not possible: " + err.Error()
+			reason = op + " not possible: " + err.Error()
 		} else if after := w.Measure(); worse(after, dr.Before) && !opt.Force {
-			reason = fmt.Sprintf("flowlayout scored %.1f against %.1f before", after.Score, dr.Before.Score)
+			reason = fmt.Sprintf("%s scored %.1f against %.1f before", op, after.Score, dr.Before.Score)
 		} else {
 			log := &tidy.Log{}
-			log.Counts = map[string]int{"flowlayout": 1}
+			log.Counts = map[string]int{op: 1}
 			dr.Applied = string(lv)
 			dr.After = after
 			dr.Operations = log.Ops(opNames())
-			dr.Details = []report.Detail{{Op: "flowlayout", Msg: fmt.Sprintf("laid out as a %s, direction %s", dr.Kind, plan.Dir)}}
+			as := dr.Kind
+			if free {
+				as = "flowchart"
+				if withLanes {
+					as = "swimlane"
+				}
+			}
+			dr.Details = []report.Detail{{Op: op, Msg: fmt.Sprintf("laid out as a %s, direction %s", as, plan.Dir)}}
 			if w.Changed() {
 				w.Patch()
 				return dr, true
@@ -205,4 +227,18 @@ func worse(after, before report.Metrics) bool {
 		return da > db
 	}
 	return after.Area > 1.1*before.Area+1 || after.WireLength > 1.1*before.WireLength+1
+}
+
+// hasLanes reports whether a diagram's shapes sit in swimlanes.
+func hasLanes(sd *segment.Diagram) bool {
+	for _, n := range sd.Nodes {
+		if n.Container && n.Shape == "swimlane" {
+			for _, c := range n.Children {
+				if !c.Container {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

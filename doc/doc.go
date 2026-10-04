@@ -303,3 +303,51 @@ func (c *Cell) RelativeGeometry() bool {
 	g := c.geometry(false)
 	return g != nil && g.Attr("relative") == "1"
 }
+
+// Remove deletes a cell from its page. The caller must not leave references to
+// it; Reindex refreshes the page's lookups afterward.
+func (p *Page) Remove(c *Cell) {
+	if root := p.model.Find("root"); root != nil {
+		root.Remove(c.Elem)
+	}
+}
+
+// Reindex refreshes the page's cell list and lookups after structural edits.
+func (p *Page) Reindex() { p.index() }
+
+// SetParent moves a cell under another parent, keeping where it is drawn: a
+// vertex keeps its page position, a wire keeps its waypoints and free ends.
+func (c *Cell) SetParent(id string) {
+	if c.IsEdge() {
+		pts := c.Points()
+		src, srcOK := c.TerminalPoint(true)
+		dst, dstOK := c.TerminalPoint(false)
+		c.Node.Set("parent", id)
+		c.Page.Reindex()
+		if len(pts) > 0 {
+			c.SetPoints(pts)
+		}
+		if srcOK {
+			c.SetTerminalPoint(true, src)
+		}
+		if dstOK {
+			c.SetTerminalPoint(false, dst)
+		}
+		return
+	}
+	abs := c.AbsBounds()
+	c.Node.Set("parent", id)
+	c.Page.Reindex()
+	if !c.RelativeGeometry() {
+		c.SetAbsBounds(abs)
+	}
+}
+
+// SetLabel writes the raw label, on the wrapper when there is one.
+func (c *Cell) SetLabel(v string) {
+	if c.Elem != c.Node {
+		c.Elem.Set("label", v)
+		return
+	}
+	c.Node.Set("value", v)
+}

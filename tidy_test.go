@@ -70,7 +70,7 @@ func tidyOrFail(t *testing.T, in input, opt Options) Result {
 }
 
 func TestNeverWorseAndOrderKept(t *testing.T) {
-	for _, lv := range []Level{Safe, Normal} {
+	for _, lv := range Levels {
 		for _, in := range corpus(t) {
 			res := tidyOrFail(t, in, Options{Level: lv})
 			for _, d := range res.Report.Diagrams {
@@ -162,10 +162,16 @@ func TestDeterministic(t *testing.T) {
 // TestTidyingTwiceChangesNothing runs the tool on its own output: a second run
 // must find nothing left to do.
 func TestTidyingTwiceChangesNothing(t *testing.T) {
+	for _, lv := range Levels {
+		twice(t, lv)
+	}
+}
+
+func twice(t *testing.T, lv Level) {
 	var failed []string
 	for _, in := range corpus(t) {
-		first := tidyOrFail(t, in, Options{Level: Normal})
-		second := tidyOrFail(t, input{in.name, first.Output}, Options{Level: Normal})
+		first := tidyOrFail(t, in, Options{Level: lv})
+		second := tidyOrFail(t, input{in.name, first.Output}, Options{Level: lv})
 		if second.Report.Changed {
 			var ops []string
 			for _, d := range second.Report.Diagrams {
@@ -181,7 +187,7 @@ func TestTidyingTwiceChangesNothing(t *testing.T) {
 	}
 	sort.Strings(failed)
 	if len(failed) > 0 {
-		t.Errorf("%d files changed again: %s", len(failed), strings.Join(failed, " "))
+		t.Errorf("%s: %d files changed again: %s", lv, len(failed), strings.Join(failed, " "))
 	}
 }
 
@@ -189,7 +195,7 @@ func TestTidyingTwiceChangesNothing(t *testing.T) {
 // what each level achieves on the messified corpus. Run with -v.
 func TestCorpusSummary(t *testing.T) {
 	ins := corpus(t)
-	for _, lv := range []Level{Safe, Normal} {
+	for _, lv := range Levels {
 		var before, after [5]int
 		stepped := 0
 		for _, in := range ins {

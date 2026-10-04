@@ -74,7 +74,7 @@ func Build(sd *segment.Diagram, withLanes bool) (*Plan, error) {
 	if err := p.findLanes(containers, leaves, withLanes); err != nil {
 		return nil, err
 	}
-	var edges []*edge
+	var edges, directed, undirected []*edge
 	wired := map[*view.Node]bool{}
 	for _, w := range sd.Wires {
 		switch {
@@ -91,10 +91,41 @@ func Build(sd *segment.Diagram, withLanes bool) (*Plan, error) {
 		if start && !end {
 			e.src, e.dst, e.reversed = w.Dst, w.Src, true
 		}
+		if start == end {
+			undirected = append(undirected, e)
+		} else {
+			directed = append(directed, e)
+		}
 		edges = append(edges, e)
 		wired[w.Src], wired[w.Dst] = true, true
 	}
-	p.Dir = direction(edges, p.laneOrder)
+	// The direction comes from the wires that have one; a wire with no
+	// arrowhead, or one at each end, then runs the way the flow does.
+	if len(directed) > 0 {
+		p.Dir = direction(directed, p.laneOrder)
+	} else {
+		p.Dir = direction(edges, p.laneOrder)
+	}
+	// With no direction at all, wires run away from the first shape in reading
+	// order, level by level, so the diagram lays out as a tree from there.
+	depth := map[*view.Node]int{}
+	if len(directed) == 0 && len(edges) > 0 {
+		depth = bfsDepth(leaves, edges, p)
+	}
+	for _, e := range undirected {
+		da, okA := depth[e.src]
+		db, okB := depth[e.dst]
+		if okA && okB && da != db {
+			if db < da {
+				e.src, e.dst, e.reversed = e.dst, e.src, !e.reversed
+			}
+			continue
+		}
+		a, b := e.src.Box.Center(), e.dst.Box.Center()
+		if p.flow(b) < p.flow(a)-5 || (math.Abs(p.flow(b)-p.flow(a)) <= 5 && p.cross(b) < p.cross(a)) {
+			e.src, e.dst, e.reversed = e.dst, e.src, !e.reversed
+		}
+	}
 	return p, p.write(leaves, edges, wired)
 }
 
@@ -174,6 +205,43 @@ func (p *Plan) findLanes(containers, leaves []*view.Node, withLanes bool) error 
 	}
 	p.cfg.LaneHeader = startSize(p.laneOrder[0])
 	return nil
+}
+
+// bfsDepth numbers each shape by its wire distance from the first shape in
+// reading order of its connected part.
+func bfsDepth(leaves []*view.Node, edges []*edge, p *Plan) map[*view.Node]int {
+	adj := map[*view.Node][]*view.Node{}
+	for _, e := range edges {
+		adj[e.src] = append(adj[e.src], e.dst)
+		adj[e.dst] = append(adj[e.dst], e.src)
+	}
+	order := append([]*view.Node(nil), leaves...)
+	sort.SliceStable(order, func(i, j int) bool {
+		a, b := order[i].Box.Center(), order[j].Box.Center()
+		if math.Abs(p.flow(a)-p.flow(b)) > 5 {
+			return p.flow(a) < p.flow(b)
+		}
+		return p.cross(a) < p.cross(b)
+	})
+	depth := map[*view.Node]int{}
+	for _, root := range order {
+		if _, seen := depth[root]; seen || len(adj[root]) == 0 {
+			continue
+		}
+		depth[root] = 0
+		queue := []*view.Node{root}
+		for len(queue) > 0 {
+			n := queue[0]
+			queue = queue[1:]
+			for _, m := range adj[n] {
+				if _, seen := depth[m]; !seen {
+					depth[m] = depth[n] + 1
+					queue = append(queue, m)
+				}
+			}
+		}
+	}
+	return depth
 }
 
 // lanesVertical reports whether lanes stand side by side as columns.
@@ -430,7 +498,8 @@ func lines(s string) []string {
 // keeps wires and neighbors clear of it.
 func fixedSize(n *view.Node) [2]float64 {
 	st := n.Style
-	keep := n.Shape == "image" || n.Shape == "umlActor" || st.Value("image", "") != "" ||
+	keep := n.Text == "" || n.Shape == "image" || n.Shape == "umlActor" || st.Value("image", "") != "" ||
+		n.Shape == "startState" || n.Shape == "endState" ||
 		(strings.HasPrefix(n.Shape, "mxgraph.") && !strings.HasPrefix(n.Shape, "mxgraph.flowchart.")) ||
 		st.Value("verticalLabelPosition", "middle") != "middle" || st.Value("labelPosition", "center") != "center"
 	if !keep {

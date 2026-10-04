@@ -62,10 +62,7 @@ aggressive level exists.
 | --force | keep results that score worse than the original |
 | --seed N | seed for randomized optimizers, default 1 |
 
-These flags are accepted and validated. Implemented today: snap, flowlayout,
-the safe operations and the normal operations. The aggressive operations
-(normalize, relayout) do not exist yet, so --level aggressive behaves like
-normal.
+These flags are accepted and validated. Every operation is implemented.
 
 ### snap (all levels)
 
@@ -109,9 +106,9 @@ edges (a depth-first walk in reading order).
 The result keeps the diagram's top-left corner, the shapes' styles and text,
 and gives every wire right-angle waypoints through fixed ports. Shapes are
 sized from their text, measured at their own fontSize; shapes with HTML labels
-get whiteSpace=wrap so text wraps inside the computed size. Images, stencil
-icons (other than the flowchart library) and shapes whose label sits outside
-them keep their drawn size; a label below or above such a shape is reserved
+get whiteSpace=wrap so text wraps inside the computed size. Shapes without text, images, stencil
+icons (other than the flowchart library), state machine start and end states
+and shapes whose label sits outside them keep their drawn size; a label below or above such a shape is reserved
 room, and wires stop beyond it (an exitDy or entryDy offset with
 exitPerimeter=0 or entryPerimeter=0).
 
@@ -208,6 +205,30 @@ Lanes of stacked pools are left alone.
 
 The normal operations repeat as a group until a pass moves nothing (at most
 four passes), then wires are rerouted and labels moved.
+
+### normalize (aggressive)
+
+Rewrites structure before anything else, and lists every rewrite in the report
+(normalized):
+
+- a group with no label is dissolved: its cells move up to the group's parent,
+  where they stay drawn, and the group is deleted;
+- a text box laid over a shape becomes part of the shape's label, wires
+  attached to the text box move to the shape, and the text box is deleted;
+- a wire ending on another wire is attached to that wire's own end shape;
+- a free text within 12px of a wire that has no label becomes its label, and
+  the text box is deleted.
+
+### relayout (aggressive)
+
+An unknown diagram (not a sequence) is laid out from scratch by the engine as
+a flowchart, or as a swimlane diagram when its shapes sit in swimlanes, with
+the same rules and fallbacks as flowlayout. Wires without an arrowhead (or
+with one at each end) run the way the flow goes; when no wire has a direction,
+they run away from the first shape in reading order, level by level, so the
+diagram lays out as a tree. Shapes without text keep their drawn size.
+Diagrams in containers that are not lanes, such as grouped architecture tiers,
+cannot be relaid out and get the normal operations.
 
 ### Score and stepping down
 
