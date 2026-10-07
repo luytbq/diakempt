@@ -50,3 +50,20 @@ func TestFlowcastDiagramsMeasureClean(t *testing.T) {
 		}
 	}
 }
+
+// TestSelfCallIsNotThroughItsShape: a loop that leaves a shape and comes back
+// into it does not pass through it.
+func TestSelfCallIsNotThroughItsShape(t *testing.T) {
+	d, _, err := doc.Parse([]byte(`<mxGraphModel><root>
+  <mxCell id="0" /><mxCell id="1" parent="0" />
+  <mxCell id="bar" style="rounded=0;" vertex="1" parent="1"><mxGeometry x="100" y="100" width="10" height="80" as="geometry" /></mxCell>
+  <mxCell id="self" style="edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="bar" target="bar"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="145" y="120" /><mxPoint x="145" y="160" /></Array></mxGeometry></mxCell>
+</root></mxGraphModel>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sd := segment.Split(view.Build(d.Pages[0])).Diagrams[0]
+	if m := New(sd, text.Default()).Measure(); m.WiresThroughNodes != 0 {
+		t.Errorf("wires through nodes %d, want 0", m.WiresThroughNodes)
+	}
+}

@@ -159,6 +159,10 @@ func throughOwnEnd(pl geom.Polyline, w *Wire) bool {
 				}
 				continue
 			}
+			// A self call comes back into its shape on its last segment.
+			if k == len(segs)-1 && w.Dst == w.Src {
+				continue
+			}
 			if s.CrossesRect(w.Src.Box, -1) {
 				return true
 			}
