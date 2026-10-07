@@ -12,6 +12,7 @@ import (
 	"github.com/luytbq/diakempt/geom"
 	"github.com/luytbq/diakempt/issue"
 	"github.com/luytbq/diakempt/report"
+	"github.com/luytbq/diakempt/segment"
 	"github.com/luytbq/diakempt/view"
 )
 
@@ -139,6 +140,11 @@ func choose(v *view.View, w *view.Wire, source bool, p Params, pairs map[[2]stri
 		}
 		return best, 0, nil
 	}
+	// Outside every shape, an end lying on a hand-drawn lifeline is a message
+	// end put there on purpose. It stays free.
+	if onLifeline(v, w, pt) {
+		return nil, 0, nil
+	}
 	if len(near) > 0 {
 		sort.SliceStable(near, func(i, j int) bool { return near[i].d < near[j].d })
 		if len(near) > 1 && near[1].d < p.Margin*near[0].d {
@@ -165,6 +171,32 @@ func choose(v *view.View, w *view.Wire, source bool, p Params, pairs map[[2]stri
 		}
 	}
 	return nil, 0, nil
+}
+
+// onLifelineDistance is how close, in pixels, a free end must be to a
+// lifeline to count as lying on it.
+const onLifelineDistance = 2
+
+// onLifeline reports whether a point lies on a hand-drawn lifeline other than
+// w (segment.HandLifeline).
+func onLifeline(v *view.View, w *view.Wire, pt geom.Point) bool {
+	for _, o := range v.Wires {
+		if o == w {
+			continue
+		}
+		var src, dst *geom.Rect
+		if o.Src != nil {
+			src = &o.Src.Box
+		}
+		if o.Dst != nil {
+			dst = &o.Dst.Box
+		}
+		x, top, bottom, ok := segment.HandLifeline(o.Style, o.Path, len(o.Points), src, dst)
+		if ok && math.Abs(pt.X-x) <= onLifelineDistance && pt.Y >= top && pt.Y <= bottom {
+			return true
+		}
+	}
+	return false
 }
 
 func threshold(b geom.Rect, p Params) float64 {

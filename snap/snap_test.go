@@ -149,3 +149,28 @@ func TestFarEndsAreNeverMisattached(t *testing.T) {
 	}
 	t.Logf("detached %d ends up to 30px out, %d clearly nearest their shape: %d reattached, %d wrong", total, judged, right, wrong)
 }
+
+// TestMessageEndOnLifelineStaysFree: a message end lying on a hand-drawn
+// lifeline just below its head is on the line on purpose, not dropped next to
+// the head.
+func TestMessageEndOnLifelineStaysFree(t *testing.T) {
+	d, _, err := doc.Parse([]byte(`<mxGraphModel><root>
+  <mxCell id="0" /><mxCell id="1" parent="0" />
+  <mxCell id="a" value="A" style="rounded=0;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="120" height="40" as="geometry" /></mxCell>
+  <mxCell id="b" value="B" style="rounded=0;" vertex="1" parent="1"><mxGeometry x="200" y="0" width="120" height="40" as="geometry" /></mxCell>
+  <mxCell id="la" style="endArrow=none;dashed=1;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="60" y="40" as="sourcePoint" /><mxPoint x="60" y="300" as="targetPoint" /></mxGeometry></mxCell>
+  <mxCell id="lb" style="endArrow=none;dashed=1;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="260" y="40" as="sourcePoint" /><mxPoint x="260" y="300" as="targetPoint" /></mxGeometry></mxCell>
+  <mxCell id="m" style="endArrow=classic;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="60" y="46" as="sourcePoint" /><mxPoint x="260" y="46" as="targetPoint" /></mxGeometry></mxCell>
+</root></mxGraphModel>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := d.Pages[0]
+	Run(view.Build(p), defaults)
+	if s, tg := p.Cell("m").Source(), p.Cell("m").Target(); s != "" || tg != "" {
+		t.Errorf("message attached: source %q, target %q", s, tg)
+	}
+	if p.Cell("la").Source() != "a" {
+		t.Errorf("lifeline top not attached to its head: %q", p.Cell("la").Source())
+	}
+}

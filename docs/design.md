@@ -140,7 +140,7 @@ Catalogue today (v1.3):
 | flowchart / activity without lanes | yes | yes, the flowcast engine |
 | swimlane activity | yes | yes, the flowcast engine |
 | sequence with UML lifelines | yes | yes, seqlayout (since v1.2) |
-| hand-drawn sequence | yes | no, general tidy-up |
+| hand-drawn sequence | yes | yes, seqlayout (since v1.3) |
 | class | yes | yes, classlayout (since v1.1) |
 | state machine | yes | yes, the flowcast engine (since v1.3) |
 | ER | yes | yes, erlayout (since v1.3) |
@@ -413,8 +413,6 @@ Postponed on purpose:
 - .drawio.svg and .drawio.png input and output, which needs the drawio CLI to
   regenerate the image part;
 - a web service on top of the core;
-- an optimizer for hand-drawn sequence diagrams (boxes with dashed lines);
-  UML lifeline diagrams have one since v1.2;
 - detection of more kinds: component, BPMN, mind map, network (class diagrams
   are detected and laid out since v1.1, state machines and ER diagrams since
   v1.3);

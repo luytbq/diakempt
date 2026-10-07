@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/luytbq/diakempt/doc"
 	"github.com/luytbq/diakempt/geom"
 	"github.com/luytbq/diakempt/view"
 )
@@ -116,6 +117,21 @@ func Split(v *view.View) Page {
 			}
 		}
 	}
+	// A hand-drawn lifeline whose head was dragged off its top end still
+	// belongs with the shape just above it.
+	for _, w := range v.Wires {
+		if w.Src != nil || w.Dst != nil {
+			continue
+		}
+		x, top, _, ok := HandLifeline(w.Style, w.Path, len(w.Points), nil, nil)
+		if !ok {
+			continue
+		}
+		if n := headAbove(v.Nodes, x, top); n != nil {
+			uf.join(widx[w], idx[n])
+			wired[n] = true
+		}
+	}
 	// Free texts and notes join the nearest wired node within reach.
 	for _, n := range v.Nodes {
 		if !(n.TextOnly || n.Shape == "note") || wired[n] || n.Parent != nil {
@@ -204,6 +220,63 @@ func Split(v *view.View) Page {
 	return out
 }
 
+// MinLifeline is the shortest line, in pixels, read as a hand-drawn lifeline.
+const MinLifeline = 60
+
+// HandLifeline reads a wire as a hand-drawn lifeline: a dashed line without
+// arrowheads or waypoints running straight down at least MinLifeline, with
+// free ends, or with its top end on the head shape it hangs from (src or dst,
+// the boxes of the attached ends). It returns the line's x and the heights of
+// its top and bottom.
+func HandLifeline(st doc.Style, pl geom.Polyline, points int, src, dst *geom.Rect) (x, top, bottom float64, ok bool) {
+	if len(pl) < 2 || points > 0 || st.Value("dashed", "0") != "1" ||
+		st.Value("endArrow", "classic") != "none" || st.Value("startArrow", "none") != "none" {
+		return 0, 0, 0, false
+	}
+	a, b := pl[0], pl[len(pl)-1]
+	head := src
+	if src != nil && dst != nil {
+		return 0, 0, 0, false
+	}
+	if dst != nil {
+		head, a, b = dst, b, a
+	}
+	if head != nil {
+		// a is on the head's outline; the free end b must hang below it.
+		x, top, bottom = b.X, head.Bottom(), b.Y
+		if x < head.X || x > head.Right() {
+			return 0, 0, 0, false
+		}
+	} else {
+		if math.Abs(a.X-b.X) > 2 {
+			return 0, 0, 0, false
+		}
+		x, top, bottom = a.X, math.Min(a.Y, b.Y), math.Max(a.Y, b.Y)
+	}
+	return x, top, bottom, bottom-top >= MinLifeline
+}
+
+// headAbove returns the shape a lifeline top at (x, top) hangs from: the
+// closest shape spanning x whose bottom is at most AttachDistance above the
+// top, or nil.
+func headAbove(nodes []*view.Node, x, top float64) *view.Node {
+	var best *view.Node
+	bd := math.Inf(1)
+	for _, n := range nodes {
+		if n.Container || n.TextOnly || x < n.Box.X-contactDistance || x > n.Box.Right()+contactDistance {
+			continue
+		}
+		d := top - n.Box.Bottom()
+		if d < -contactDistance || d > AttachDistance || n.Box.Y > top {
+			continue
+		}
+		if d < bd {
+			best, bd = n, d
+		}
+	}
+	return best
+}
+
 // wiredInside reports whether a container holds a wired shape, as a lifeline
 // holds the activation bars its messages attach to.
 func wiredInside(n *view.Node, wired map[*view.Node]bool) bool {
@@ -226,21 +299,11 @@ func crossesBox(pl geom.Polyline, b geom.Rect) bool {
 
 func nearPath(pl geom.Polyline, p geom.Point) bool {
 	for _, s := range pl.Segments() {
-		if distToSegment(s, p) <= contactDistance {
+		if s.Dist(p) <= contactDistance {
 			return true
 		}
 	}
 	return false
-}
-
-func distToSegment(s geom.Segment, p geom.Point) float64 {
-	dx, dy := s.B.X-s.A.X, s.B.Y-s.A.Y
-	l2 := dx*dx + dy*dy
-	if l2 == 0 {
-		return p.Dist(s.A)
-	}
-	t := math.Max(0, math.Min(1, ((p.X-s.A.X)*dx+(p.Y-s.A.Y)*dy)/l2))
-	return p.Dist(geom.Point{X: s.A.X + t*dx, Y: s.A.Y + t*dy})
 }
 
 func sortNodes(ns []*view.Node, idx map[*view.Node]int) {

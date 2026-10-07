@@ -1,8 +1,10 @@
-// Package sequence lays out UML sequence diagrams drawn with the editor's
-// lifeline shape: lifelines in a row in the author's order, spaced so message
-// labels fit; messages in their time order, one per row, all horizontal;
-// activation bars spanning exactly the messages they send and receive; frames
-// and notes following the messages they belong with.
+// Package sequence lays out sequence diagrams. Those drawn with the editor's
+// UML lifeline shape get lifelines in a row in the author's order, spaced so
+// message labels fit; messages in their time order, one per row, all
+// horizontal; activation bars spanning exactly the messages they send and
+// receive; frames and notes following the messages they belong with.
+// Hand-drawn ones (boxes, dashed lines and free arrows) get their heads in a
+// row, each line straight below its head, and their messages one per row.
 package sequence
 
 import (
@@ -51,8 +53,11 @@ func Layout(d *tidy.Diagram) error {
 			lifelines = append(lifelines, n)
 		}
 	}
+	if len(lifelines) == 0 {
+		return layoutHand(d)
+	}
 	if len(lifelines) < 2 {
-		return &Unsupported{"fewer than two UML lifelines (hand-drawn lifelines are not laid out)"}
+		return &Unsupported{"fewer than two UML lifelines"}
 	}
 	for _, n := range d.Nodes {
 		if n.Container && n.V.Shape != "umlLifeline" {

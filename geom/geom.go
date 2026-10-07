@@ -105,6 +105,17 @@ type Segment struct{ A, B Point }
 // Len returns the segment length.
 func (s Segment) Len() float64 { return s.A.Dist(s.B) }
 
+// Dist returns the distance from p to the nearest point of the segment.
+func (s Segment) Dist(p Point) float64 {
+	dx, dy := s.B.X-s.A.X, s.B.Y-s.A.Y
+	l2 := dx*dx + dy*dy
+	if l2 == 0 {
+		return p.Dist(s.A)
+	}
+	t := math.Max(0, math.Min(1, ((p.X-s.A.X)*dx+(p.Y-s.A.Y)*dy)/l2))
+	return p.Dist(Point{X: s.A.X + t*dx, Y: s.A.Y + t*dy})
+}
+
 // CrossesRect reports whether the segment passes through the inside of r, more
 // than margin away from its outline. A segment that only touches or runs along
 // the outline does not cross.

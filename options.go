@@ -43,7 +43,7 @@ type Operation struct {
 var Operations = []Operation{
 	{"snap", Safe, "attach wire ends dropped next to a shape"},
 	{"flowlayout", Safe, "lay recognized flowcharts, swimlanes and state machines out from scratch with the layout engine"},
-	{"seqlayout", Safe, "lay recognized UML sequence diagrams out: lifelines in a row, one message per row"},
+	{"seqlayout", Safe, "lay recognized sequence diagrams out, UML or hand-drawn: lifelines in a row, one message per row"},
 	{"classlayout", Safe, "lay recognized class diagrams out: parents above children, generalizations as trunks"},
 	{"erlayout", Safe, "lay recognized ER diagrams out: tables in columns, the one side of each relation left of the many side"},
 	{"separate", Safe, "push overlapping nodes apart"},

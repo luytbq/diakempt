@@ -77,6 +77,8 @@ Attaches wire ends that were dropped next to a shape instead of on it:
 - an end near a container's outline, with no shape nearby, attaches to the
   innermost such container; an end in the middle of empty container space stays
   free;
+- an end outside every shape that lies on a hand-drawn lifeline (see
+  seqlayout) stays free: it is a message end put there on purpose;
 - a wire is never snapped back onto the shape at its other end; a candidate that
   would duplicate an existing wire loses ties;
 - ends with no stored position are left alone.
@@ -145,10 +147,29 @@ is laid out from scratch:
 - notes follow the nearest lifeline sideways and the rows downward;
 - lifelines extend 40px below the last message.
 
-The diagram keeps its top-left corner. Fewer than two UML lifelines (a
-hand-drawn sequence), a message that does not join two lifelines, or a
-container other than a lifeline falls back to the general operations, as does
-a result that scores worse.
+The diagram keeps its top-left corner. One UML lifeline, a message that does
+not join two lifelines, or a container other than a lifeline falls back to the
+general operations, as does a result that scores worse.
+
+A sequence diagram drawn by hand, with no UML lifeline, is laid out the same
+way from its own parts:
+
+- a lifeline is a dashed line without arrowheads or waypoints running at least
+  60px straight down, with free ends or its top attached to a shape; its head
+  is that shape, or the closest shape spanning the line's x whose bottom is at
+  most 40px above the line's top;
+- a message is any other wire whose free ends lie within 6px of a lifeline's
+  x; a self call needs waypoints;
+- heads go in one row with their tops aligned, spaced as UML lifelines are;
+  each line hangs from the bottom center of its head to 40px below the last
+  message; messages get one row each (two for a self call), drawn as
+  horizontal lines between the lines; notes and other shapes follow as with
+  UML lifelines.
+
+Only free wire ends move. A lifeline that hangs from no shape, two lifelines
+under one shape, a message attached to a shape, a message without waypoints
+starting and ending on one lifeline, or a container falls back to the general
+operations.
 
 ### classlayout (all levels)
 
@@ -196,7 +217,8 @@ operations, as does a result that scores worse.
 Each page is split into diagrams: groups of shapes joined by wires or by sitting
 in the same top-level container. A free wire end within 4px of another wire or
 of a shape joins it, so arrows drawn between dashed lifelines belong to their
-sequence diagram. A free text or a note (shape=note) within 40px of a wired
+sequence diagram, and a hand-drawn lifeline joins the shape just above its
+top (within 40px) even when its head was dragged off it. A free text or a note (shape=note) within 40px of a wired
 shape, or of a container holding one (such as a lifeline with activation bars),
 joins its diagram. A UML frame joins the diagram whose wires it encloses. Everything else (lone shapes, titles, legends, wires attached to
 nothing) is decoration and is never changed. Each diagram is reported with an
@@ -346,7 +368,8 @@ learning, so the report can say why (--verbose lists the signals):
 - swimlane: the same, inside swimlane containers (a pool with lanes, or
   swimlanes side by side as bands);
 - sequence: two or more lifelines (the UML lifeline shape, or dashed vertical
-  lines without arrowheads) with horizontal messages between them;
+  lines without arrowheads, free or hanging from a shape) with horizontal
+  messages between them;
 - class: two or more UML classes (the editor's class shape: a swimlane
   stacking its rows), most shapes being classes, with UML relation ends on the
   wires;
@@ -367,9 +390,8 @@ or low confidence and, at medium, the kind it came closest to. Diagrams too
 small to judge (fewer than three shapes or two directed wires) are unknown.
 
 Flowcharts, swimlanes and state machines are laid out from scratch (see flowlayout below),
-class diagrams by classlayout, ER diagrams by erlayout, sequence diagrams drawn with UML lifelines by
-seqlayout; hand-drawn sequence diagrams and unknown diagrams get the general
-operations. --type overrides the
+class diagrams by classlayout, ER diagrams by erlayout, sequence diagrams by
+seqlayout; unknown diagrams get the general operations. --type overrides the
 detected kind, so --type flowchart or --type swimlane forces a relayout attempt
 and --type unknown prevents one.
 

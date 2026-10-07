@@ -55,6 +55,7 @@ var examples = []example{
 	{"25-sequence-uml", "corpus/clean/sequence/03-uml-5x10.drawio", 0, 0, 0, Normal},
 	{"26-er-shop-scattered", "corpus/clean/er/04-shop-scattered.drawio", 0, 0, 0, Normal},
 	{"27-er-shop-messified", "corpus/clean/er/03-shop.drawio", 3, 60, 0.7, Normal},
+	{"28-hand-sequence-messified", "corpus/clean/sequence/05-hand-4x6.drawio", 2, 30, 0.6, Normal},
 }
 
 // TestShowcase writes showcase/NAME.before.drawio and NAME.after.drawio for

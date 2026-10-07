@@ -446,21 +446,23 @@ func lanes(d *segment.Diagram) (lanes, others int) {
 
 func near(a, b float64) bool { return math.Abs(a-b) <= 2 }
 
-// sequenceShape finds hand-drawn lifelines (dashed vertical lines without
-// arrowheads hanging below a shape) and messages (horizontal arrows whose ends
+// sequenceShape finds hand-drawn lifelines (segment.HandLifeline) and messages (horizontal arrows whose ends
 // touch two of them).
 func sequenceShape(d *segment.Diagram) (lifelines, messages int) {
 	var lines []geom.Segment
 	for _, w := range d.Wires {
-		pl := w.Path
-		if len(pl) != 2 || w.Style.Value("dashed", "0") != "1" || w.Style.Value("endArrow", "classic") != "none" {
+		var src, dst *geom.Rect
+		if w.Src != nil {
+			src = &w.Src.Box
+		}
+		if w.Dst != nil {
+			dst = &w.Dst.Box
+		}
+		x, top, bottom, ok := segment.HandLifeline(w.Style, w.Path, len(w.Points), src, dst)
+		if !ok {
 			continue
 		}
-		a, b := pl[0], pl[1]
-		if math.Abs(a.X-b.X) > 2 || math.Abs(a.Y-b.Y) < 60 {
-			continue
-		}
-		lines = append(lines, geom.Segment{A: a, B: b})
+		lines = append(lines, geom.Segment{A: geom.Point{X: x, Y: top}, B: geom.Point{X: x, Y: bottom}})
 	}
 	if len(lines) < 2 {
 		return len(lines), 0

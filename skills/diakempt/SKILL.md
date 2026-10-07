@@ -84,10 +84,22 @@ What the report says, and what to do:
   --type flowchart or --type swimlane.
 - Kind detected wrongly and the user does not want a relayout: rerun with
   --type unknown.
-- "seqlayout not possible: fewer than two UML lifelines": the sequence diagram
-  is hand-drawn (boxes and dashed lines), which seqlayout does not handle; only
-  the general tidy ran. Redrawing it with the UML lifeline shapes lets
-  seqlayout run.
+- "seqlayout not possible: fewer than two UML lifelines": the diagram mixes
+  one UML lifeline with hand-drawn ones; only the general tidy ran. Drawing
+  every participant the same way lets seqlayout run.
+- seqlayout not possible on a hand-drawn sequence (boxes and dashed lines);
+  only the general tidy ran. Map the reason to advice:
+  - "lifeline ... hangs from no shape": a dashed line has no box within 40px
+    above it; move its head box over it;
+  - "lifelines ... hang from one shape": two dashed lines under one box;
+  - "message ... is attached to a lifeline head" or "to a shape that is not a
+    lifeline head": an arrow is connected to a box instead of ending on a
+    dashed line; detach it in draw.io and drop its end on the line;
+  - "message ... starts and ends at the same point": a self call drawn as a
+    straight line; give it waypoints;
+  - "container ... in a hand-drawn sequence": hand-drawn sequences inside
+    containers are not laid out;
+  - "fewer than two lifelines": fewer than two dashed lines were recognized.
 - "seqlayout not possible: message ... does not join two lifelines": a found
   or lost message, or an arrow to a note; the general tidy ran instead.
 - Kind unknown but the user says it is a class diagram drawn with plain boxes:
