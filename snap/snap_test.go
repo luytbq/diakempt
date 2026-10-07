@@ -174,3 +174,23 @@ func TestMessageEndOnLifelineStaysFree(t *testing.T) {
 		t.Errorf("lifeline top not attached to its head: %q", p.Cell("la").Source())
 	}
 }
+
+// TestFramesAreNotTargets: an end dropped inside a UML frame, next to the bar
+// it was meant for, attaches to the bar.
+func TestFramesAreNotTargets(t *testing.T) {
+	d, _, err := doc.Parse([]byte(`<mxGraphModel><root>
+  <mxCell id="0" /><mxCell id="1" parent="0" />
+  <mxCell id="alt" value="alt" style="shape=umlFrame;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="400" height="200" as="geometry" /></mxCell>
+  <mxCell id="bar" style="rounded=0;" vertex="1" parent="1"><mxGeometry x="300" y="50" width="10" height="80" as="geometry" /></mxCell>
+  <mxCell id="src" style="rounded=0;" vertex="1" parent="1"><mxGeometry x="50" y="50" width="10" height="80" as="geometry" /></mxCell>
+  <mxCell id="m" style="endArrow=open;" edge="1" parent="1" source="src"><mxGeometry relative="1" as="geometry"><mxPoint x="298" y="90" as="targetPoint" /></mxGeometry></mxCell>
+</root></mxGraphModel>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := d.Pages[0]
+	Run(view.Build(p), defaults)
+	if got := p.Cell("m").Target(); got != "bar" {
+		t.Errorf("target %q, want bar", got)
+	}
+}

@@ -103,7 +103,9 @@ func choose(v *view.View, w *view.Wire, source bool, p Params, pairs map[[2]stri
 		}
 		return pairs[key]
 	}
-	plausible := func(n *view.Node) bool { return n != other }
+	// Frames drawn over other shapes (alt, loop) are never what a wire means
+	// to attach to.
+	plausible := func(n *view.Node) bool { return n != other && !n.Overlay }
 	type cand struct {
 		n *view.Node
 		d float64

@@ -79,6 +79,8 @@ Attaches wire ends that were dropped next to a shape instead of on it:
   free;
 - an end outside every shape that lies on a hand-drawn lifeline (see
   seqlayout) stays free: it is a message end put there on purpose;
+- UML frames (alt, loop, opt) are never targets: an end inside a frame
+  attaches to the shape it was dropped next to;
 - a wire is never snapped back onto the shape at its other end; a candidate that
   would duplicate an existing wire loses ties;
 - ends with no stored position are left alone.
