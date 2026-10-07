@@ -133,17 +133,19 @@ The detection catalogue is separate from the optimizer catalogue. A kind can be
 recognized before it has its own optimizer; it then gets the general tidy-up and the
 report says so.
 
-v1 catalogue:
+Catalogue today (v1.2):
 
 | Kind | Detected | Own optimizer |
 |---|---|---|
 | flowchart / activity without lanes | yes | yes, the flowcast engine |
 | swimlane activity | yes | yes, the flowcast engine |
-| sequence | yes | no, general tidy-up |
+| sequence with UML lifelines | yes | yes, seqlayout (since v1.2) |
+| hand-drawn sequence | yes | no, general tidy-up |
+| class | yes | yes, classlayout (since v1.1) |
 | anything else | unknown | general tidy-up |
 
-Class, ER, state, component, BPMN, mind map and network diagrams are not detected in
-v1; they are unknown.
+ER, state, component, BPMN, mind map and network diagrams are not detected yet;
+they are unknown.
 
 The user can force the kind for the whole file with a flag, for example
 --type swimlane.

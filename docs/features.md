@@ -56,7 +56,7 @@ aggressive level exists.
 | Flag | Effect |
 |---|---|
 | --level safe, normal, aggressive | how far the layout may change; default normal |
-| --type flowchart, swimlane, sequence, unknown | treat every diagram as this kind |
+| --type flowchart, swimlane, sequence, class, unknown | treat every diagram as this kind |
 | --with-NAME | run operation NAME whatever the level |
 | --no-NAME | skip operation NAME |
 | --force | keep results that score worse than the original |
@@ -316,7 +316,7 @@ Each setting is a flag taking a number in its range.
 
 ## Detected kinds
 
-Each diagram is scored as flowchart, swimlane and sequence by rules, never by
+Each diagram is scored as flowchart, swimlane, sequence and class by rules, never by
 learning, so the report can say why (--verbose lists the signals):
 
 - flowchart: three or more shapes, mostly one-way arrows going the same
