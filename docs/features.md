@@ -41,8 +41,7 @@ level, applied, step_downs, operations, details, before, after. Metrics:
 wires_through_nodes, node_overlaps, label_overlaps, wire_crossings, wire_overlaps,
 area, wire_length, score.
 
-Today every field is filled except normalized, which stays empty until the
-aggressive level exists.
+normalized is filled at the aggressive level only, and left out when empty.
 
 ## Exit codes
 
