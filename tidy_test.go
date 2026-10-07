@@ -79,6 +79,14 @@ func TestNeverWorseAndOrderKept(t *testing.T) {
 				if worse(d.After, d.Before) {
 					t.Errorf("%s %s %s: score %.2f --> %.2f", lv, in.name, d.ID, d.Before.Score, d.After.Score)
 				}
+				// A later pass retrying the same attempt must not report it twice.
+				seen := map[string]bool{}
+				for _, s := range d.StepDowns {
+					if seen[s] {
+						t.Errorf("%s %s %s: step down reported twice: %s", lv, in.name, d.ID, s)
+					}
+					seen[s] = true
+				}
 			}
 		}
 	}

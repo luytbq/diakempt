@@ -2,6 +2,7 @@ package diakempt
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/luytbq/diakempt/classes"
@@ -128,7 +129,7 @@ func (pr *pageReport) absorb(later *pageReport) {
 			d.Before = e.Before
 			d.Operations = addOps(e.Operations, d.Operations)
 			d.Details = append(e.Details, d.Details...)
-			d.StepDowns = append(e.StepDowns, d.StepDowns...)
+			d.StepDowns = addNew(e.StepDowns, d.StepDowns)
 			if e.Applied != "none" {
 				d.Applied = e.Applied
 			}
@@ -136,6 +137,18 @@ func (pr *pageReport) absorb(later *pageReport) {
 		out = append(out, d)
 	}
 	pr.diagrams = out
+}
+
+// addNew appends the entries of b that a does not hold yet: a later pass that
+// retries the same attempt gives the same reason.
+func addNew(a, b []string) []string {
+	out := append([]string(nil), a...)
+	for _, s := range b {
+		if !slices.Contains(out, s) {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func addOps(a, b []report.OpCount) []report.OpCount {
