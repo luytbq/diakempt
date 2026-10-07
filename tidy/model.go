@@ -53,6 +53,10 @@ type Wire struct {
 	// are written with it.
 	Routed bool
 
+	// srcPart and dstPart place the cells the ends name inside their nodes,
+	// relative to the node's corner, when those are parts such as table rows.
+	srcPart, dstPart *geom.Rect
+
 	origPoints       []geom.Point
 	origSrc, origDst *geom.Point
 	origStyle        string
@@ -109,12 +113,31 @@ func New(seg *segment.Diagram, tm *text.Measure) *Diagram {
 			p := *vw.DstPoint
 			w.DstPoint, w.origDst = &p, vw.DstPoint
 		}
+		w.srcPart = partOf(vw.SrcRef, w.Src)
+		w.dstPart = partOf(vw.DstRef, w.Dst)
 		w.origStyle = vw.Style.String()
 		w.labels = d.readLabels(vw)
 		w.origLabels = append([]label(nil), w.labels...)
 		d.Wires = append(d.Wires, w)
 	}
 	return d
+}
+
+// partOf returns where the cell a wire end names sits inside its node,
+// relative to the node's corner, when it is a part of the node rather than the
+// node itself.
+func partOf(ref string, n *Node) *geom.Rect {
+	if n == nil || ref == "" || ref == n.V.Cells[0].ID {
+		return nil
+	}
+	c := n.V.Cells[0].Page.Cell(ref)
+	if c == nil || !c.IsVertex() {
+		return nil
+	}
+	b := c.AbsBounds()
+	b.X -= n.Orig.X
+	b.Y -= n.Orig.Y
+	return &b
 }
 
 func (d *Diagram) readLabels(vw *view.Wire) []label {
@@ -179,11 +202,24 @@ func (w *Wire) Path() geom.Polyline {
 	e := view.Ends{SrcPoint: w.SrcPoint, DstPoint: w.DstPoint}
 	if w.Src != nil {
 		e.Src = &w.Src.Box
+		e.SrcPart = placePart(w.srcPart, w.Src)
 	}
 	if w.Dst != nil {
 		e.Dst = &w.Dst.Box
+		e.DstPart = placePart(w.dstPart, w.Dst)
 	}
 	return view.Route(e, w.Points, w.Style)
+}
+
+// placePart moves a part's relative box to its node's current corner.
+func placePart(rel *geom.Rect, n *Node) *geom.Rect {
+	if rel == nil {
+		return nil
+	}
+	b := *rel
+	b.X += n.Box.X
+	b.Y += n.Box.Y
+	return &b
 }
 
 // LabelBoxes returns the boxes of the wire's labels on its current line.

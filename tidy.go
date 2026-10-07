@@ -201,6 +201,7 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 	}{
 		{detect.Class, "classlayout", "a class diagram", classes.Layout},
 		{detect.Sequence, "seqlayout", "a sequence diagram", sequence.Layout},
+		{detect.ER, "erlayout", "an ER diagram", classes.LayoutER},
 	} {
 		if dr.Kind != k.kind || !opt.enabled(k.op, lv) {
 			continue
@@ -223,7 +224,7 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 			return unchanged(dr), false
 		}
 	}
-	flow := (dr.Kind == detect.Flowchart || dr.Kind == detect.Swimlane) && opt.enabled("flowlayout", lv)
+	flow := (dr.Kind == detect.Flowchart || dr.Kind == detect.Swimlane || dr.Kind == detect.State) && opt.enabled("flowlayout", lv)
 	free := dr.Kind == detect.Unknown && opt.enabled("relayout", lv)
 	if flow || free {
 		op := "flowlayout"
@@ -245,6 +246,9 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 			dr.After = after
 			dr.Operations = log.Ops(opNames())
 			as := dr.Kind
+			if as == detect.State {
+				as = "state machine"
+			}
 			if free {
 				as = "flowchart"
 				if withLanes {

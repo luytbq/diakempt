@@ -55,7 +55,7 @@ normalized is filled at the aggressive level only, and left out when empty.
 | Flag | Effect |
 |---|---|
 | --level safe, normal, aggressive | how far the layout may change; default normal |
-| --type flowchart, swimlane, sequence, class, unknown | treat every diagram as this kind |
+| --type flowchart, swimlane, sequence, class, state, er, unknown | treat every diagram as this kind |
 | --with-NAME | run operation NAME whatever the level |
 | --no-NAME | skip operation NAME |
 | --force | keep results that score worse than the original |
@@ -86,13 +86,13 @@ wire, end, target and distance.
 
 Operations, by the lowest level that runs them:
 
-- safe: snap, flowlayout, seqlayout, classlayout, separate, containers, reroute, labels
+- safe: snap, flowlayout, seqlayout, classlayout, erlayout, separate, containers, reroute, labels
 - normal: align, resize, samesize, spacing, compact, grid
 - aggressive: normalize, relayout
 
 ### flowlayout (all levels)
 
-A diagram detected (or forced) as a flowchart or swimlane is laid out from
+A diagram detected (or forced) as a flowchart, swimlane or state machine is laid out from
 scratch by the layout engine copied from flowcast, at every level. The diagram
 is written as a Flow Table: shapes become elements (diamonds with two or more
 outgoing wires are conditions; ellipses are starts, ends or externals; cylinders
@@ -168,6 +168,28 @@ A diagram detected (or forced) as a class diagram is laid out from scratch:
 Classes keep their size, since their rows set it, and the diagram keeps its
 top-left corner. Classes inside a container, wires with a free end or ending on
 a text fall back to the general operations, as does a result that scores worse.
+
+### erlayout (all levels)
+
+A diagram detected (or forced) as an ER diagram is laid out from scratch, as
+the class layout turned on its side:
+
+- columns from the left: the table at the "one" end of a relation (ERone,
+  ERmandOne, ERzeroToOne) left of the table at the "many" end (ERmany,
+  ERoneToMany, ERzeroToMany), so foreign keys point left; one-to-one and
+  many-to-many relations do not decide columns, and a table with neither sits
+  in the column of its median neighbor;
+- within a column, tables ordered top to bottom to reduce crossings, each
+  level with the tables it hangs from as far as its neighbors allow.
+
+draw.io routes relations drawn with edgeStyle=entityRelationEdgeStyle by
+itself, out of the left or right side of the table at the row the relation is
+attached to, and ignores waypoints; those relations only lose stored
+waypoints. Other wires are routed around the tables.
+
+Tables keep their size and the diagram keeps its top-left corner. Tables inside
+a container, wires with a free end or ending on a text fall back to the general
+operations, as does a result that scores worse.
 
 ### Diagrams and decoration
 
@@ -315,7 +337,7 @@ Each setting is a flag taking a number in its range.
 
 ## Detected kinds
 
-Each diagram is scored as flowchart, swimlane, sequence and class by rules, never by
+Each diagram is scored as flowchart, swimlane, sequence, class, state and er by rules, never by
 learning, so the report can say why (--verbose lists the signals):
 
 - flowchart: three or more shapes, mostly one-way arrows going the same
@@ -327,7 +349,12 @@ learning, so the report can say why (--verbose lists the signals):
   lines without arrowheads) with horizontal messages between them;
 - class: two or more UML classes (the editor's class shape: a swimlane
   stacking its rows), most shapes being classes, with UML relation ends on the
-  wires.
+  wires;
+- state: three or more shapes with the editor's initial or final state dots
+  (shape=startState, shape=endState), mostly one-way transitions, no lanes,
+  lifelines or containers, no shapes of other notations;
+- er: two or more of the editor's ER tables (shape=table), most shapes being
+  tables, with ER relation ends on the wires.
 
 For the flow kinds, shapes or arrows of other notations (UML classes, ER tables and relations,
 state machine start and end states, network and cloud icons, mind map links,
@@ -339,8 +366,8 @@ ahead of the next kind. Otherwise the diagram is unknown, reported with medium
 or low confidence and, at medium, the kind it came closest to. Diagrams too
 small to judge (fewer than three shapes or two directed wires) are unknown.
 
-Flowcharts and swimlanes are laid out from scratch (see flowlayout below),
-class diagrams by classlayout, sequence diagrams drawn with UML lifelines by
+Flowcharts, swimlanes and state machines are laid out from scratch (see flowlayout below),
+class diagrams by classlayout, ER diagrams by erlayout, sequence diagrams drawn with UML lifelines by
 seqlayout; hand-drawn sequence diagrams and unknown diagrams get the general
 operations. --type overrides the
 detected kind, so --type flowchart or --type swimlane forces a relayout attempt

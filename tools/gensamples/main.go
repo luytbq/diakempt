@@ -24,7 +24,7 @@ func main() {
 		"network":      {network(5), network(8)},
 		"mindmap":      {mindmap(5), mindmap(8)},
 		"class":        {class(3), class(5), classModel("bank", false), classModel("bank-scattered", true)},
-		"er":           {er(3), er(4)},
+		"er":           {er(3), er(4), erModel("shop", false), erModel("shop-scattered", true)},
 		"state":        {state(4), state(6)},
 		"handflow":     {handflow("basic", 12, false), handflow("library", 12, true), handflow("big-font", 16, false)},
 	} {
@@ -302,6 +302,71 @@ func er(n int) func() *page {
 		}
 		for i := 1; i < n; i++ {
 			p.edge("1", "", "edgeStyle=entityRelationEdgeStyle;fontSize=12;html=1;endArrow=ERmany;startArrow=ERmandOne;", ids[i-1], ids[i])
+		}
+		return p
+	}
+}
+
+// erTable draws a table with the editor's Entity Relation shapes: a title,
+// then one row per column holding a key cell (PK, FK or empty) and the column
+// name. It returns the table and its rows by column name, for relations to
+// attach to as the editor does.
+func (p *page) erTable(name string, cols [][2]string, x, y float64) (string, map[string]string) {
+	const row, w, key = 30.0, 200.0, 40.0
+	t := p.vertex("1", name, "shape=table;startSize=30;container=1;collapsible=1;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=1;align=center;resizeLast=1;html=1;", x, y, w, row*float64(len(cols)+1))
+	rows := map[string]string{}
+	for i, c := range cols {
+		r := p.vertex(t, "", "shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;fillColor=none;collapsible=0;dropTarget=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;html=1;", 0, row*float64(i+1), w, row)
+		p.vertex(r, c[0], "shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;fontStyle=1;overflow=hidden;html=1;", 0, 0, key, row)
+		p.vertex(r, c[1], "shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;overflow=hidden;html=1;", key, 0, w-key, row)
+		rows[c[1]] = r
+	}
+	return t, rows
+}
+
+// erModel draws a shop schema: tables with primary and foreign keys, and
+// one-to-many relations from a primary key row to the foreign key row that
+// references it. scattered places the tables the way a schema grows over
+// time.
+func erModel(slug string, scattered bool) func() *page {
+	return func() *page {
+		p := &page{slug: slug, title: "Shop schema"}
+		pos := map[string][2]float64{
+			"customers": {40, 40}, "categories": {40, 400},
+			"addresses": {340, 40}, "orders": {340, 240}, "products": {340, 470},
+			"order_items": {640, 400}, "payments": {640, 40}, "shipments": {640, 210},
+		}
+		if scattered {
+			pos = map[string][2]float64{
+				"customers": {660, 470}, "categories": {380, 60},
+				"addresses": {60, 420}, "orders": {700, 60}, "products": {60, 60},
+				"order_items": {360, 300}, "payments": {80, 640}, "shipments": {420, 600},
+			}
+		}
+		rows := map[string]map[string]string{}
+		table := func(name string, cols ...[2]string) {
+			_, rows[name] = p.erTable(name, cols, pos[name][0], pos[name][1])
+		}
+		table("customers", [2]string{"PK", "id"}, [2]string{"", "name"}, [2]string{"", "email"})
+		table("addresses", [2]string{"PK", "id"}, [2]string{"FK", "customer_id"}, [2]string{"", "street"}, [2]string{"", "city"})
+		table("orders", [2]string{"PK", "id"}, [2]string{"FK", "customer_id"}, [2]string{"", "placed_at"}, [2]string{"", "status"})
+		table("categories", [2]string{"PK", "id"}, [2]string{"", "name"})
+		table("products", [2]string{"PK", "id"}, [2]string{"FK", "category_id"}, [2]string{"", "name"}, [2]string{"", "price"})
+		table("order_items", [2]string{"PK", "id"}, [2]string{"FK", "order_id"}, [2]string{"FK", "product_id"}, [2]string{"", "quantity"})
+		table("payments", [2]string{"PK", "id"}, [2]string{"FK", "order_id"}, [2]string{"", "amount"})
+		table("shipments", [2]string{"PK", "id"}, [2]string{"FK", "order_id"}, [2]string{"FK", "address_id"}, [2]string{"", "sent_at"})
+		rel := "edgeStyle=entityRelationEdgeStyle;fontSize=12;html=1;endArrow=ERzeroToMany;startArrow=ERmandOne;"
+		for _, r := range [][3]string{
+			{"customers", "addresses", "customer_id"},
+			{"customers", "orders", "customer_id"},
+			{"orders", "order_items", "order_id"},
+			{"products", "order_items", "product_id"},
+			{"categories", "products", "category_id"},
+			{"orders", "payments", "order_id"},
+			{"orders", "shipments", "order_id"},
+			{"addresses", "shipments", "address_id"},
+		} {
+			p.edge("1", "", rel, rows[r[0]]["id"], rows[r[1]][r[2]])
 		}
 		return p
 	}

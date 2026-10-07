@@ -53,6 +53,8 @@ var examples = []example{
 	{"23-sequence-checkout", "corpus/clean/sequence/06-checkout.drawio", 0, 0, 0, Normal},
 	{"24-sequence-checkout-scattered", "corpus/clean/sequence/07-checkout-scattered.drawio", 0, 0, 0, Normal},
 	{"25-sequence-uml", "corpus/clean/sequence/03-uml-5x10.drawio", 0, 0, 0, Normal},
+	{"26-er-shop-scattered", "corpus/clean/er/04-shop-scattered.drawio", 0, 0, 0, Normal},
+	{"27-er-shop-messified", "corpus/clean/er/03-shop.drawio", 3, 60, 0.7, Normal},
 }
 
 // TestShowcase writes showcase/NAME.before.drawio and NAME.after.drawio for

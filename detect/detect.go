@@ -25,6 +25,8 @@ const (
 	Swimlane  = "swimlane"
 	Sequence  = "sequence"
 	Class     = "class"
+	State     = "state"
+	ER        = "er"
 	Unknown   = "unknown"
 )
 
@@ -55,8 +57,10 @@ func Detect(d *segment.Diagram) Result {
 		Swimlane:  f.flowScore(true),
 		Sequence:  f.sequenceScore(),
 		Class:     f.classScore(),
+		State:     f.stateScore(),
+		ER:        f.erScore(),
 	}
-	kinds := []string{Flowchart, Swimlane, Sequence, Class}
+	kinds := []string{Flowchart, Swimlane, Sequence, Class, State, ER}
 	sort.SliceStable(kinds, func(i, j int) bool { return scores[kinds[i]] > scores[kinds[j]] })
 	best, second := kinds[0], scores[kinds[1]]
 	r := Result{Best: best, Scores: scores, Signals: f.signals}
@@ -91,6 +95,9 @@ type features struct {
 	foreign        []string // shapes or arrows of other notations
 	classes        int      // UML class shapes
 	umlWires       int      // wires with UML relation ends
+	tables         int      // ER tables
+	erWires        int      // wires with ER relation ends
+	starts, ends   int      // state machine start and final states
 	lifelines      int
 	handLifelines  int
 	messages       int
@@ -115,9 +122,16 @@ func measure(d *segment.Diagram) *features {
 		if IsClass(n) {
 			f.classes++
 		}
+		if n.Shape == "table" {
+			f.tables++
+		}
 		switch {
 		case n.Shape == "umlLifeline":
 			f.lifelines++
+		case n.Shape == "startState":
+			f.starts++
+		case n.Shape == "endState":
+			f.ends++
 		case strings.HasPrefix(n.Shape, "mxgraph.flowchart."):
 			f.flowLibrary++
 		}
@@ -128,6 +142,9 @@ func measure(d *segment.Diagram) *features {
 			f.foreign = append(f.foreign, why)
 			if strings.HasPrefix(why, "UML") {
 				f.umlWires++
+			}
+			if why == "ER relation" {
+				f.erWires++
 			}
 		}
 		if w.Src == nil || w.Dst == nil || w.Src.Container || w.Dst.Container {
@@ -215,6 +232,12 @@ func measure(d *segment.Diagram) *features {
 	if f.classes > 0 {
 		f.signal("%s, %d UML relations", plural(f.classes, "class"), f.umlWires)
 	}
+	if f.tables > 0 {
+		f.signal("%s, %d ER relations", plural(f.tables, "table"), f.erWires)
+	}
+	if f.starts+f.ends > 0 {
+		f.signal("%d initial and %d final states", f.starts, f.ends)
+	}
 	if len(f.foreign) > 0 {
 		f.signal("other notation: %s", strings.Join(dedupe(f.foreign), ", "))
 	}
@@ -274,6 +297,49 @@ func (f *features) classScore() float64 {
 	}
 	s := 0.6*share + 0.4*rel
 	if f.lifelines > 0 || f.handLifelines > 0 || f.lanes > 0 {
+		s *= 0.5
+	}
+	return s
+}
+
+// stateScore scores a UML state machine: the editor's initial or final state
+// dots, and transitions that are mostly one-way arrows. Shapes of other
+// notations, lanes and lifelines push it down.
+func (f *features) stateScore() float64 {
+	if f.leaves < 3 || f.directed < 2 || f.starts+f.ends == 0 {
+		return 0
+	}
+	directedShare := float64(f.directed) / float64(f.attached)
+	both := 0.5
+	if f.starts > 0 && f.ends > 0 {
+		both = 1
+	}
+	s := 0.5 + 0.25*directedShare + 0.25*both
+	for _, why := range f.foreign {
+		if why != "state machine" {
+			s *= 0.5
+			break
+		}
+	}
+	if f.lanes > 0 || f.lifelines > 0 || f.handLifelines > 0 || f.nonLaneGroups > 0 {
+		s *= 0.5
+	}
+	return s
+}
+
+// erScore scores an entity relationship diagram: most shapes are the
+// editor's tables, and the wires between them use ER relation ends.
+func (f *features) erScore() float64 {
+	if f.tables < 2 || f.leaves == 0 {
+		return 0
+	}
+	share := float64(f.tables) / float64(f.leaves)
+	rel := 0.5
+	if f.erWires > 0 {
+		rel = 1
+	}
+	s := 0.6*share + 0.4*rel
+	if f.classes > 0 || f.lifelines > 0 || f.handLifelines > 0 || f.lanes > 0 {
 		s *= 0.5
 	}
 	return s

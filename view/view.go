@@ -282,11 +282,27 @@ func (v *View) path(w *Wire) geom.Polyline {
 	e := Ends{SrcPoint: w.SrcPoint, DstPoint: w.DstPoint}
 	if w.Src != nil {
 		e.Src = &w.Src.Box
+		e.SrcPart = v.part(w.Src, w.SrcRef)
 	}
 	if w.Dst != nil {
 		e.Dst = &w.Dst.Box
+		e.DstPart = v.part(w.Dst, w.DstRef)
 	}
 	return Route(e, w.Points, w.Style)
+}
+
+// part returns the box of the cell a wire end names when that cell is a part
+// of the node rather than the node itself, such as a row of an ER table.
+func (v *View) part(n *Node, ref string) *geom.Rect {
+	if ref == "" || ref == n.Cells[0].ID {
+		return nil
+	}
+	c := v.Page.Cell(ref)
+	if c == nil || !c.IsVertex() {
+		return nil
+	}
+	b := c.AbsBounds()
+	return &b
 }
 
 // Ends describes what a wire is attached to: a box for an attached end, a
@@ -294,6 +310,16 @@ func (v *View) path(w *Wire) geom.Polyline {
 type Ends struct {
 	Src, Dst           *geom.Rect
 	SrcPoint, DstPoint *geom.Point
+	// SrcPart and DstPart are the boxes of the cells the ends name when those
+	// are parts of the node, such as table rows; nil when the end names the
+	// node itself.
+	SrcPart, DstPart *geom.Rect
+}
+
+// IsEntityRelation reports the edge style of ER relations, which draw.io
+// routes from the terminals alone, ignoring waypoints.
+func IsEntityRelation(st doc.Style) bool {
+	return st.Value("edgeStyle", "") == "entityRelationEdgeStyle"
 }
 
 // IsOrthogonal reports whether draw.io draws the wire with right angles.
@@ -310,6 +336,9 @@ func IsOrthogonal(st doc.Style) bool {
 // line toward the next point leaves the box. An orthogonal wire gets the elbows
 // draw.io would add between points that are not level.
 func Route(e Ends, pts []geom.Point, st doc.Style) geom.Polyline {
+	if IsEntityRelation(st) && e.Src != nil && e.Dst != nil {
+		return routeEntity(e, st)
+	}
 	var srcPt, dstPt geom.Point
 	srcOK, dstOK := e.SrcPoint != nil, e.DstPoint != nil
 	if srcOK {
@@ -361,6 +390,60 @@ func Route(e Ends, pts []geom.Point, st doc.Style) geom.Polyline {
 		out = orthogonalize(out)
 	}
 	return out
+}
+
+// entitySegment is draw.io's default horizontal run of an ER relation out of
+// a table side (mxConstants.ENTITY_SEGMENT).
+const entitySegment = 30
+
+// routeEntity draws an ER relation the way draw.io's EntityRelation edge
+// style does: out of the left or right side of each terminal at the vertical
+// center of the cell it names (a table row, or the table), a short horizontal
+// run, then across. The sides face each other when the tables are apart and
+// both point the same way when they overlap horizontally.
+func routeEntity(e Ends, st doc.Style) geom.Polyline {
+	seg := geom.ParseNumber(st.Value("segment", "30"))
+	if seg <= 0 {
+		seg = entitySegment
+	}
+	src, dst := *e.Src, *e.Dst
+	srcY, dstY := src.Center().Y, dst.Center().Y
+	if e.SrcPart != nil {
+		srcY = e.SrcPart.Center().Y
+	}
+	if e.DstPart != nil {
+		dstY = e.DstPart.Center().Y
+	}
+	srcLeft := dst.Right() < src.X
+	dstLeft := src.Right() < dst.X
+	x0, xe := src.Right(), dst.Right()
+	if srcLeft {
+		x0 = src.X
+	}
+	if dstLeft {
+		xe = dst.X
+	}
+	dx0, dxe := seg, seg
+	if srcLeft {
+		dx0 = -seg
+	}
+	if dstLeft {
+		dxe = -seg
+	}
+	a, b := geom.Point{X: x0, Y: srcY}, geom.Point{X: xe, Y: dstY}
+	dep, arr := geom.Point{X: x0 + dx0, Y: srcY}, geom.Point{X: xe + dxe, Y: dstY}
+	switch {
+	case srcLeft == dstLeft:
+		x := math.Max(x0, xe) + seg
+		if srcLeft {
+			x = math.Min(x0, xe) - seg
+		}
+		return geom.Polyline{a, {X: x, Y: srcY}, {X: x, Y: dstY}, b}
+	case (dep.X < arr.X) == srcLeft:
+		mid := srcY + (dstY-srcY)/2
+		return geom.Polyline{a, dep, {X: dep.X, Y: mid}, {X: arr.X, Y: mid}, arr, b}
+	}
+	return geom.Polyline{a, dep, arr, b}
 }
 
 // jettyLength is how far draw.io runs an orthogonal wire straight out of a

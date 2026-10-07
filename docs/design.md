@@ -133,7 +133,7 @@ The detection catalogue is separate from the optimizer catalogue. A kind can be
 recognized before it has its own optimizer; it then gets the general tidy-up and the
 report says so.
 
-Catalogue today (v1.2):
+Catalogue today (v1.3):
 
 | Kind | Detected | Own optimizer |
 |---|---|---|
@@ -142,10 +142,12 @@ Catalogue today (v1.2):
 | sequence with UML lifelines | yes | yes, seqlayout (since v1.2) |
 | hand-drawn sequence | yes | no, general tidy-up |
 | class | yes | yes, classlayout (since v1.1) |
+| state machine | yes | yes, the flowcast engine (since v1.3) |
+| ER | yes | yes, erlayout (since v1.3) |
 | anything else | unknown | general tidy-up |
 
-ER, state, component, BPMN, mind map and network diagrams are not detected yet;
-they are unknown.
+Component, BPMN, mind map and network diagrams are not detected yet; they are
+unknown.
 
 The user can force the kind for the whole file with a flag, for example
 --type swimlane.
@@ -413,8 +415,9 @@ Postponed on purpose:
 - a web service on top of the core;
 - an optimizer for hand-drawn sequence diagrams (boxes with dashed lines);
   UML lifeline diagrams have one since v1.2;
-- detection of more kinds: ER, state, component, BPMN, mind map, network (class
-  diagrams are detected and laid out since v1.1);
+- detection of more kinds: component, BPMN, mind map, network (class diagrams
+  are detected and laid out since v1.1, state machines and ER diagrams since
+  v1.3);
 - a general layout engine that handles nested containers and undirected graphs
   (force-directed), replacing the flowchart-mode fallback at aggressive;
 - the future of flowcast relative to diakempt, including whether table, mermaid and

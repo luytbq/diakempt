@@ -70,6 +70,10 @@ What the report says, and what to do:
   container (a package), a wire with a free end, or a wire ending on a text.
   The general tidy still ran; attaching the wire in draw.io lets the class
   layout run next time.
+- "erlayout not possible": the ER diagram has tables inside a container, a
+  relation with a free end, or a wire ending on a text. The general tidy
+  still ran; attaching the relation to a table row in draw.io lets the ER
+  layout run next time.
 - "flowlayout not possible" or "relayout not possible": the engine cannot
   represent the diagram. Map the reason to advice:
   - a wire with a free end: attach it in draw.io, or accept the general tidy;

@@ -49,8 +49,8 @@ var want = map[string]string{
 	"network":            Unknown,
 	"mindmap":            Unknown,
 	"class":              Class,
-	"er":                 Unknown,
-	"state":              Unknown,
+	"er":                 ER,
+	"state":              State,
 }
 
 func TestDetectCleanCorpus(t *testing.T) {

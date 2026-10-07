@@ -51,27 +51,9 @@ type link struct {
 
 // Layout places the classes and routes the relations of a working copy.
 func Layout(d *tidy.Diagram) error {
-	var nodes []*tidy.Node
-	for _, n := range d.Nodes {
-		if n.Container {
-			return &Unsupported{"classes inside a container"}
-		}
-		if !n.Text {
-			nodes = append(nodes, n)
-		}
-	}
-	if len(nodes) < 2 {
-		return &Unsupported{"fewer than two classes"}
-	}
-	var links []*link
-	for _, w := range d.Wires {
-		if w.Src == nil || w.Dst == nil {
-			return &Unsupported{fmt.Sprintf("wire %s has a free end", w.V.Cell.ID)}
-		}
-		if w.Src.Text || w.Dst.Text {
-			return &Unsupported{fmt.Sprintf("wire %s ends on a text", w.V.Cell.ID)}
-		}
-		links = append(links, classify(w))
+	nodes, links, err := collect(d, "classes", classify)
+	if err != nil {
+		return err
 	}
 	rank := ranks(nodes, links)
 	layers := order(nodes, links, rank)
@@ -79,6 +61,34 @@ func Layout(d *tidy.Diagram) error {
 	keepCorner(d, nodes)
 	route(d, layers, links, rank)
 	return nil
+}
+
+// collect returns the shapes to place and the relations between them, or why
+// the diagram cannot be laid out. noun names the shapes in the reasons.
+func collect(d *tidy.Diagram, noun string, classify func(*tidy.Wire) *link) ([]*tidy.Node, []*link, error) {
+	var nodes []*tidy.Node
+	for _, n := range d.Nodes {
+		if n.Container {
+			return nil, nil, &Unsupported{noun + " inside a container"}
+		}
+		if !n.Text {
+			nodes = append(nodes, n)
+		}
+	}
+	if len(nodes) < 2 {
+		return nil, nil, &Unsupported{"fewer than two " + noun}
+	}
+	var links []*link
+	for _, w := range d.Wires {
+		if w.Src == nil || w.Dst == nil {
+			return nil, nil, &Unsupported{fmt.Sprintf("wire %s has a free end", w.V.Cell.ID)}
+		}
+		if w.Src.Text || w.Dst.Text {
+			return nil, nil, &Unsupported{fmt.Sprintf("wire %s ends on a text", w.V.Cell.ID)}
+		}
+		links = append(links, classify(w))
+	}
+	return nodes, links, nil
 }
 
 // classify reads a wire's relation from its arrowheads, as the editor's UML
