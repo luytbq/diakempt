@@ -11,7 +11,9 @@ package detect
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/luytbq/diakempt/geom"
@@ -28,6 +30,7 @@ const (
 	State     = "state"
 	ER        = "er"
 	UseCase   = "usecase"
+	Comm      = "communication"
 	Unknown   = "unknown"
 )
 
@@ -61,8 +64,9 @@ func Detect(d *segment.Diagram) Result {
 		State:     f.stateScore(),
 		ER:        f.erScore(),
 		UseCase:   f.useCaseScore(),
+		Comm:      f.commScore(),
 	}
-	kinds := []string{Flowchart, Swimlane, Sequence, Class, State, ER, UseCase}
+	kinds := []string{Flowchart, Swimlane, Sequence, Class, State, ER, UseCase, Comm}
 	sort.SliceStable(kinds, func(i, j int) bool { return scores[kinds[i]] > scores[kinds[j]] })
 	best, second := kinds[0], scores[kinds[1]]
 	r := Result{Best: best, Scores: scores, Signals: f.signals}
@@ -108,6 +112,8 @@ type features struct {
 	useCases       int // ellipses with text
 	others         int // leaves that are neither, nor notes or frames
 	useCaseWires   int // wires joining actors and use cases
+	objects        int // boxes named as instances, ":Class" or "name:Class"
+	numbered       int // wires without arrowheads labeled with message numbers
 	signals        []string
 }
 
@@ -137,6 +143,9 @@ func measure(d *segment.Diagram) *features {
 			f.actors++
 		case IsUseCase(n):
 			f.useCases++
+		case isObject(n):
+			f.objects++
+			f.others++
 		default:
 			f.others++
 		}
@@ -161,6 +170,9 @@ func measure(d *segment.Diagram) *features {
 			if why == "ER relation" {
 				f.erWires++
 			}
+		}
+		if w.Style.Value("endArrow", "classic") == "none" && w.Style.Value("startArrow", "none") == "none" && MessageNumber(w.Text) != nil {
+			f.numbered++
 		}
 		if w.Src == nil || w.Dst == nil || w.Src.Container || w.Dst.Container {
 			continue
@@ -276,6 +288,9 @@ func measure(d *segment.Diagram) *features {
 	}
 	if f.actors > 0 {
 		f.signal("%s, %s, %d wires between them", plural(f.actors, "actor"), plural(f.useCases, "use case"), f.useCaseWires)
+	}
+	if f.objects > 0 || f.numbered > 0 {
+		f.signal("%s, %d links with numbered messages", plural(f.objects, "object"), f.numbered)
 	}
 	if len(f.foreign) > 0 {
 		f.signal("other notation: %s", strings.Join(dedupe(f.foreign), ", "))
@@ -397,6 +412,72 @@ func (f *features) useCaseScore() float64 {
 		s *= 0.5
 	}
 	return s
+}
+
+// commScore scores a communication diagram: objects and actors joined by
+// links without arrowheads that carry numbered messages.
+func (f *features) commScore() float64 {
+	if f.objects < 2 || f.numbered < 1 || f.wires == 0 {
+		return 0
+	}
+	share := float64(f.objects+f.actors) / float64(f.actors+f.useCases+f.others)
+	msgs := float64(f.numbered) / float64(f.wires)
+	s := 0.5*share + 0.5*msgs
+	if f.lifelines > 0 || f.handLifelines > 0 || f.lanes > 0 || f.classes > 0 || f.tables > 0 || f.nonLaneGroups > 0 {
+		s *= 0.5
+	}
+	return s
+}
+
+// isObject reports a box named as an instance: a line of its text reads
+// ":Class" or "name:Class", or its text is underlined.
+func isObject(n *view.Node) bool {
+	if n.Shape != "rectangle" || n.Text == "" {
+		return false
+	}
+	if fs, err := strconv.Atoi(n.Style.Value("fontStyle", "0")); err == nil && fs&4 != 0 {
+		return true
+	}
+	for _, line := range strings.Split(n.Text, "\n") {
+		if instanceName.MatchString(strings.TrimSpace(line)) {
+			return true
+		}
+	}
+	return false
+}
+
+// instanceName matches an object's name: an optional role, a colon, a class.
+var instanceName = regexp.MustCompile(`^[\p{L}\w]*\s*:\s*[\p{L}_][\p{L}\w.]*$`)
+
+// messageNumber matches a sequence number such as 1, 2.1 or 1.1.3 at the
+// start of a line, followed by a colon or a comma.
+var messageNumber = regexp.MustCompile(`(?m)^\s*(\d+(?:\.\d+)*)\s*[:,]`)
+
+// MessageNumber returns the first message number in a label, as its parts,
+// or nil when the label carries none.
+func MessageNumber(label string) []int {
+	var best []int
+	for _, m := range messageNumber.FindAllStringSubmatch(label, -1) {
+		var parts []int
+		for _, p := range strings.Split(m[1], ".") {
+			n, _ := strconv.Atoi(p)
+			parts = append(parts, n)
+		}
+		if best == nil || numberLess(parts, best) {
+			best = parts
+		}
+	}
+	return best
+}
+
+// numberLess orders message numbers as the messages are sent: 1 < 1.1 < 2.
+func numberLess(a, b []int) bool {
+	for i := 0; i < len(a) && i < len(b); i++ {
+		if a[i] != b[i] {
+			return a[i] < b[i]
+		}
+	}
+	return len(a) < len(b)
 }
 
 // IsUseCase reports an ellipse with text and no solid fill, as use cases are

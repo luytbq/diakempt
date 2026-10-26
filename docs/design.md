@@ -145,6 +145,7 @@ Catalogue today (v1.3):
 | state machine | yes | yes, the flowcast engine (since v1.3) |
 | ER | yes | yes, erlayout (since v1.3) |
 | use case | yes | yes, usecaselayout |
+| communication | yes | yes, commlayout |
 | anything else | unknown | general tidy-up |
 
 Component, BPMN, mind map and network diagrams are not detected yet; they are

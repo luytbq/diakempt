@@ -74,6 +74,9 @@ What the report says, and what to do:
   relation with a free end, or a wire ending on a text. The general tidy
   still ran; attaching the relation to a table row in draw.io lets the ER
   layout run next time.
+- "commlayout not possible": the communication diagram holds a container, or
+  a link with a free end or ending on a text; the general tidy still ran.
+  Attaching the link in draw.io lets the layout run next time.
 - "usecaselayout not possible": the use case diagram holds a container, a
   second boundary, a shape that is neither an actor, a use case, a note nor a
   text, or a wire with a free end; the reason names it. The general tidy still

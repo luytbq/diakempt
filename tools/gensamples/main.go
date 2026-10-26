@@ -19,15 +19,16 @@ func main() {
 	out := flag.String("out", "corpus/clean", "output directory")
 	flag.Parse()
 	for kind, gens := range map[string][]func() *page{
-		"sequence":     {seqUML(3, 4), seqUML(4, 7), seqUML(5, 10), seqHand(3, 5), seqHand(4, 6), seqRich("checkout", false), seqRich("checkout-scattered", true), seqDrawn("drawn", false), seqDrawn("drawn-scattered", true)},
-		"architecture": {arch(3, 2), arch(4, 3), arch(2, 4)},
-		"network":      {network(5), network(8)},
-		"mindmap":      {mindmap(5), mindmap(8)},
-		"class":        {class(3), class(5), classModel("bank", false), classModel("bank-scattered", true), classAnalysis()},
-		"er":           {er(3), er(4), erModel("shop", false), erModel("shop-scattered", true)},
-		"state":        {state(4), state(6)},
-		"usecase":      {useCases("library", false), useCases("library-scattered", true)},
-		"handflow":     {handflow("basic", 12, false), handflow("library", 12, true), handflow("big-font", 16, false)},
+		"sequence":      {seqUML(3, 4), seqUML(4, 7), seqUML(5, 10), seqHand(3, 5), seqHand(4, 6), seqRich("checkout", false), seqRich("checkout-scattered", true), seqDrawn("drawn", false), seqDrawn("drawn-scattered", true)},
+		"architecture":  {arch(3, 2), arch(4, 3), arch(2, 4)},
+		"network":       {network(5), network(8)},
+		"mindmap":       {mindmap(5), mindmap(8)},
+		"class":         {class(3), class(5), classModel("bank", false), classModel("bank-scattered", true), classAnalysis()},
+		"er":            {er(3), er(4), erModel("shop", false), erModel("shop-scattered", true)},
+		"state":         {state(4), state(6)},
+		"usecase":       {useCases("library", false), useCases("library-scattered", true)},
+		"communication": {communication("borrow", false), communication("borrow-scattered", true)},
+		"handflow":      {handflow("basic", 12, false), handflow("library", 12, true), handflow("big-font", 16, false)},
 	} {
 		dir := filepath.Join(*out, kind)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -715,6 +716,40 @@ func useCases(slug string, scattered bool) func() *page {
 		p.edge("1", "", assoc, uc[4], bank)
 		p.edge("1", "«include»", "endArrow=open;dashed=1;html=1;", uc[1], uc[5])
 		p.edge("1", "«extend»", "endArrow=open;dashed=1;html=1;", uc[4], uc[2])
+		return p
+	}
+}
+
+// communication draws a communication diagram: an actor and objects named
+// ":Class", joined by links without arrowheads whose labels carry numbered
+// messages, one of them a self link.
+func communication(slug string, scattered bool) func() *page {
+	return func() *page {
+		p := &page{slug: slug, title: "Borrow a book"}
+		pos := [][2]float64{{40, 200}, {200, 200}, {460, 200}, {720, 60}, {720, 200}, {720, 340}, {980, 200}}
+		if scattered {
+			pos = [][2]float64{{600, 420}, {80, 60}, {420, 220}, {80, 380}, {760, 40}, {300, 480}, {840, 260}}
+		}
+		object := "rounded=0;whiteSpace=wrap;html=1;fontStyle=4;"
+		ids := []string{p.vertex("1", "Member", "shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;", pos[0][0], pos[0][1], 30, 60)}
+		for i, n := range []string{":BorrowForm", ":BorrowController", ":Member", ":Book", ":Loan", ":Notifier"} {
+			ids = append(ids, p.vertex("1", n, object, pos[i+1][0], pos[i+1][1], 160, 50))
+		}
+		link := "endArrow=none;html=1;labelBackgroundColor=#ffffff;"
+		for _, m := range []struct {
+			a, b int
+			text string
+		}{
+			{0, 1, "1: borrow(book) (-->)"},
+			{1, 2, "1.1: borrow(member, book) (-->)"},
+			{2, 3, "1.1.1: canBorrow() (-->)"},
+			{2, 4, "1.1.2: reserve() (-->)"},
+			{2, 5, "1.1.3: create(member, book) (-->)"},
+			{2, 2, "1.1.4: log()"},
+			{5, 6, "1.1.3.1: notifyDue(loan) (-->)"},
+		} {
+			p.edge("1", m.text, link, ids[m.a], ids[m.b])
+		}
 		return p
 	}
 }

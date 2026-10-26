@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/luytbq/diakempt/classes"
+	"github.com/luytbq/diakempt/communication"
 	"github.com/luytbq/diakempt/detect"
 	"github.com/luytbq/diakempt/doc"
 	"github.com/luytbq/diakempt/geom"
@@ -207,6 +208,7 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 		{detect.Sequence, "seqlayout", "a sequence diagram", sequence.Layout},
 		{detect.ER, "erlayout", "an ER diagram", classes.LayoutER},
 		{detect.UseCase, "usecaselayout", "a use case diagram", usecase.Layout},
+		{detect.Comm, "commlayout", "a communication diagram", communication.Layout},
 	} {
 		if dr.Kind != k.kind || !opt.enabled(k.op, lv) {
 			continue

@@ -1,0 +1,52 @@
+<mxfile host="Electron" version="24.7.17">
+  <diagram id="borrow" name="Borrow a book">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="Member" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="200" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value=":BorrowForm" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=4;" vertex="1" parent="1">
+          <mxGeometry x="200" y="200" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value=":BorrowController" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=4;" vertex="1" parent="1">
+          <mxGeometry x="460" y="200" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value=":Member" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=4;" vertex="1" parent="1">
+          <mxGeometry x="720" y="60" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value=":Book" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=4;" vertex="1" parent="1">
+          <mxGeometry x="720" y="200" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value=":Loan" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=4;" vertex="1" parent="1">
+          <mxGeometry x="720" y="340" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value=":Notifier" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=4;" vertex="1" parent="1">
+          <mxGeometry x="980" y="200" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" value="1: borrow(book) (--&gt;)" style="endArrow=none;html=1;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="c1" target="c2">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c9" value="1.1: borrow(member, book) (--&gt;)" style="endArrow=none;html=1;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="c2" target="c3">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c10" value="1.1.1: canBorrow() (--&gt;)" style="endArrow=none;html=1;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="c3" target="c4">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c11" value="1.1.2: reserve() (--&gt;)" style="endArrow=none;html=1;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="c3" target="c5">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c12" value="1.1.3: create(member, book) (--&gt;)" style="endArrow=none;html=1;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="c3" target="c6">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c13" value="1.1.4: log()" style="endArrow=none;html=1;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="c3" target="c3">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c14" value="1.1.3.1: notifyDue(loan) (--&gt;)" style="endArrow=none;html=1;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="c6" target="c7">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

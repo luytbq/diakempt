@@ -56,7 +56,7 @@ out; it moves with its nearest diagram.
 **Segment** - splitting a page into diagrams and decoration.
 
 **Kind** - what sort of diagram something is: flowchart, swimlane, sequence,
-class, state, er, usecase, or unknown.
+class, state, er, usecase, communication, or unknown.
 
 **Lifeline** - a participant of a sequence diagram: the editor's UML lifeline
 shape, a head with a dashed line below it. **Activation bar** - a narrow box
@@ -70,6 +70,10 @@ frame's edge or on a found message's dot rather than on a lifeline.
 case** - an ellipse with text that actors are associated with. **System
 boundary** - the unfilled rectangle drawn around the use cases; a frame, like
 a sequence diagram's, never a container.
+
+**Object** - a box of a communication diagram named as an instance,
+":Class" or "name:Class". **Link** - an undirected wire between objects or
+actors whose label lists the numbered messages sent along it.
 
 **Trunk** - the shared path the generalizations of one parent class take: up
 from each child to a level in the gap between ranks, across, and into the
