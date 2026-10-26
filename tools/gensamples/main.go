@@ -19,7 +19,7 @@ func main() {
 	out := flag.String("out", "corpus/clean", "output directory")
 	flag.Parse()
 	for kind, gens := range map[string][]func() *page{
-		"sequence":     {seqUML(3, 4), seqUML(4, 7), seqUML(5, 10), seqHand(3, 5), seqHand(4, 6), seqRich("checkout", false), seqRich("checkout-scattered", true)},
+		"sequence":     {seqUML(3, 4), seqUML(4, 7), seqUML(5, 10), seqHand(3, 5), seqHand(4, 6), seqRich("checkout", false), seqRich("checkout-scattered", true), seqDrawn("drawn", false), seqDrawn("drawn-scattered", true)},
 		"architecture": {arch(3, 2), arch(4, 3), arch(2, 4)},
 		"network":      {network(5), network(8)},
 		"mindmap":      {mindmap(5), mindmap(8)},
@@ -596,4 +596,62 @@ func seqRich(slug string, scattered bool) func() *page {
 		p.vertex("1", "Card declines are retried once", "shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=12;", cx(3)+60+jx(7), row(1)-10, 140, 50)
 		return p
 	}
+}
+
+// seqDrawn draws a sequence diagram the way generators that write draw.io
+// XML often do: UML lifelines with messages whose ends are free points on the
+// lifelines' center lines, frames as unfilled rectangles titled "alt [...]",
+// an operand separator as a dashed line across the frame, an interaction use
+// ("ref"), and an sd frame around everything with a found message coming in
+// through a dot on its edge.
+func seqDrawn(slug string, scattered bool) func() *page {
+	return func() *page {
+		p := &page{slug: slug, title: "Checkout, drawn"}
+		jy := func(i int) float64 {
+			if !scattered {
+				return 0
+			}
+			return float64((i*23)%30 - 15)
+		}
+		gap := 160.0
+		life := "shape=umlLifeline;perimeter=lifelinePerimeter;container=1;collapsible=0;recursiveResize=0;html=1;whiteSpace=wrap;"
+		names := []string{":OrderController", ":Cart", ":PaymentGateway", ":Mailer"}
+		for i, n := range names {
+			p.vertex("1", n, life, 200+float64(i)*gap, 60, 120, 560)
+		}
+		cx := func(i int) float64 { return 260 + float64(i)*gap }
+		frame := "rounded=0;whiteSpace=wrap;html=1;fillColor=none;align=left;verticalAlign=top;"
+		p.vertex("1", "sd checkout", frame, 100, 20, cx(3)+120-100, 620)
+
+		msg := "endArrow=block;endFill=1;html=1;verticalAlign=bottom;"
+		ret := "endArrow=open;dashed=1;html=1;verticalAlign=bottom;"
+		row := func(k int) float64 { return 140 + float64(k)*40 + jy(k) }
+		m := func(value, style string, a, b float64, k int) {
+			id := p.freeEdge("1", style, a, row(k), b, row(k))
+			p.label(id, value)
+		}
+		m("1: checkout(cart)", msg, 100, cx(0), 0)
+		p.vertex("1", "", "ellipse;fillColor=#000000;html=1;", 95, row(0)-5, 10, 10)
+		m("1.1: total()", msg, cx(0), cx(1), 1)
+		m("1.1 (return): amount", ret, cx(1), cx(0), 2)
+		p.vertex("1", "alt [amount > 0] / [empty cart]", frame, cx(0)-80, row(3)-20, cx(3)-cx(0)+160, 150)
+		m("1.2: charge(amount, card reference)", msg, cx(0), cx(2), 3)
+		p.vertex("1", "opt [receipt wanted]", frame, cx(0)-40, row(4)-20, cx(3)-cx(0)+80, 40)
+		m("1.3: sendReceipt()", msg, cx(0), cx(3), 4)
+		sep := p.freeEdge("1", "endArrow=none;dashed=1;html=1;align=left;verticalAlign=bottom;", cx(0)-80, row(5)-5, cx(3)+80, row(5)-5)
+		p.label(sep, "[empty cart]")
+		self := p.freeEdge("1", "endArrow=block;endFill=1;html=1;align=left;spacingLeft=4;", cx(0), row(6), cx(0), row(6)+20)
+		p.label(self, "1.4: reject(\"empty\")")
+		p.cells[len(p.cells)-1] = strings.Replace(p.cells[len(p.cells)-1], "</mxGeometry>",
+			fmt.Sprintf("  <Array as=\"points\"><mxPoint x=\"%s\" y=\"%s\" /><mxPoint x=\"%s\" y=\"%s\" /></Array>\n          </mxGeometry>", num(cx(0)+40), num(row(6)), num(cx(0)+40), num(row(6)+20)), 1)
+		p.vertex("1", "ref\nAudit trail", frame, cx(0)-80, row(8)+10, cx(1)-cx(0)+160, 50)
+		m("1.5: done", ret, cx(0), 100, 10)
+		return p
+	}
+}
+
+// label sets the value of the last cell, which must be id.
+func (p *page) label(id, value string) {
+	last := p.cells[len(p.cells)-1]
+	p.cells[len(p.cells)-1] = strings.Replace(last, `id="`+id+`" value=""`, `id="`+id+`" value="`+esc(value)+`"`, 1)
 }

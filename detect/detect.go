@@ -368,7 +368,7 @@ func foreignShape(n *view.Node) string {
 		return "network or cloud icon"
 	case st.Value("treeFolding", "0") == "1":
 		return "mind map"
-	case n.Shape == "umlFrame":
+	case n.Overlay:
 		return "UML"
 	}
 	return ""
@@ -493,11 +493,37 @@ func sequenceShape(d *segment.Diagram) (lifelines, messages int) {
 }
 
 // umlMessages counts wires between UML lifelines, attached to the lifeline
-// itself or to an activation bar on it. A self call counts too.
+// itself or to an activation bar on it, or with free ends on the lifelines'
+// center lines. A self call counts too.
 func umlMessages(d *segment.Diagram) int {
+	var lifelines []*view.Node
+	for _, n := range d.Nodes {
+		if n.Shape == "umlLifeline" {
+			lifelines = append(lifelines, n)
+		}
+	}
+	on := func(w *view.Wire, source bool) bool {
+		n := w.Dst
+		if source {
+			n = w.Src
+		}
+		if n != nil {
+			return Lifeline(n) != nil
+		}
+		pt, ok := w.End(source)
+		if !ok {
+			return false
+		}
+		for _, l := range lifelines {
+			if segment.OnUMLLifeline(l, pt) {
+				return true
+			}
+		}
+		return false
+	}
 	n := 0
 	for _, w := range d.Wires {
-		if Lifeline(w.Src) != nil && Lifeline(w.Dst) != nil {
+		if on(w, true) && on(w, false) {
 			n++
 		}
 	}

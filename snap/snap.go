@@ -142,9 +142,10 @@ func choose(v *view.View, w *view.Wire, source bool, p Params, pairs map[[2]stri
 		}
 		return best, 0, nil
 	}
-	// Outside every shape, an end lying on a hand-drawn lifeline is a message
-	// end put there on purpose. It stays free.
-	if onLifeline(v, w, pt) {
+	// Outside every shape, an end lying on a hand-drawn lifeline, on a UML
+	// lifeline's center line or on a frame's edge is a message end, a gate or
+	// an operand separator put there on purpose. It stays free.
+	if onLifeline(v, w, pt) || onFrameEdge(v, pt) {
 		return nil, 0, nil
 	}
 	if len(near) > 0 {
@@ -195,6 +196,20 @@ func onLifeline(v *view.View, w *view.Wire, pt geom.Point) bool {
 		}
 		x, top, bottom, ok := segment.HandLifeline(o.Style, o.Path, len(o.Points), src, dst)
 		if ok && math.Abs(pt.X-x) <= onLifelineDistance && pt.Y >= top && pt.Y <= bottom {
+			return true
+		}
+	}
+	return false
+}
+
+// onFrameEdge reports whether a point lies on a UML lifeline's center line or
+// on the outline of a frame.
+func onFrameEdge(v *view.View, pt geom.Point) bool {
+	for _, n := range v.Nodes {
+		if segment.OnUMLLifeline(n, pt) {
+			return true
+		}
+		if n.Overlay && n.Box.DistToOutline(pt) <= onLifelineDistance {
 			return true
 		}
 	}

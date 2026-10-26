@@ -77,9 +77,11 @@ Attaches wire ends that were dropped next to a shape instead of on it:
 - an end near a container's outline, with no shape nearby, attaches to the
   innermost such container; an end in the middle of empty container space stays
   free;
-- an end outside every shape that lies on a hand-drawn lifeline (see
-  seqlayout) stays free: it is a message end put there on purpose;
-- UML frames (alt, loop, opt) are never targets: an end inside a frame
+- an end outside every shape that lies on a hand-drawn lifeline, within 6px
+  of a UML lifeline's center line, or within 2px of a frame's outline (see
+  seqlayout) stays free: it is a message end, a gate or an operand separator
+  put there on purpose;
+- frames (alt, loop, opt, ref, sd) are never targets: an end inside a frame
   attaches to the shape it was dropped next to;
 - a wire is never snapped back onto the shape at its other end; a candidate that
   would duplicate an existing wire loses ties;
@@ -149,9 +151,29 @@ is laid out from scratch:
 - notes follow the nearest lifeline sideways and the rows downward;
 - lifelines extend 40px below the last message.
 
-The diagram keeps its top-left corner. One UML lifeline, a message that does
-not join two lifelines, or a container other than a lifeline falls back to the
-general operations, as does a result that scores worse.
+A frame is the editor's UML frame (shape=umlFrame) or an unfilled rectangle
+(fillColor=none, text at the top) whose text starts with alt, opt, loop,
+break, par, critical, neg, assert, ignore, consider, seq, strict, ref or sd.
+Messages drawn with free ends work as well as attached ones:
+
+- a free end within 6px of a lifeline's center line is on that lifeline, and
+  moves with it;
+- a free end on a frame's left or right edge, or a message attached to a
+  small shape off the lifelines (a found message's dot), is a gate: it stays
+  on the frame's new edge, or keeps its offset from the nearest lifeline, and
+  the dot follows it;
+- a line without arrowheads running across a frame is an operand separator:
+  it gets a row of its own and spans the frame's new width;
+- a frame enclosing no message (an interaction use such as "ref Login") gets
+  rows of its own height, across the lifelines it crossed;
+- a frame drawn around the lifeline heads (an sd frame) is redrawn around the
+  lifelines with the margins it had;
+- a frame opening or closing at a message adds 20px or 10px of room there,
+  and nested frames keep 10px apart.
+
+The diagram keeps its top-left corner. One UML lifeline, a message that
+touches no lifeline and is no separator, or a container other than a lifeline
+falls back to the general operations, as does a result that scores worse.
 
 A sequence diagram drawn by hand, with no UML lifeline, is laid out the same
 way from its own parts:
@@ -222,7 +244,9 @@ of a shape joins it, so arrows drawn between dashed lifelines belong to their
 sequence diagram, and a hand-drawn lifeline joins the shape just above its
 top (within 40px) even when its head was dragged off it. A free text or a note (shape=note) within 40px of a wired
 shape, or of a container holding one (such as a lifeline with activation bars),
-joins its diagram. A UML frame joins the diagram whose wires it encloses. Everything else (lone shapes, titles, legends, wires attached to
+joins its diagram. A free end within 6px of a UML lifeline's center line
+joins that lifeline. A frame joins the diagram whose wires it encloses, or
+whose lifelines it is drawn across. Everything else (lone shapes, titles, legends, wires attached to
 nothing) is decoration and is never changed. Each diagram is reported with an
 identifier such as Page-1 #2 "Login": page, index in reading order, and the top
 container's title or the first shape's text.
@@ -338,7 +362,7 @@ first pass, and the changes of all passes add up.
 
 Each diagram is scored before and after: wires through shapes and overlapping
 shapes (including a shape sticking out of its container) weigh 100, overlapping
-labels 20, wires on top of wires 10, crossings 5, plus small weights for area
+labels (including a label struck through by a UML lifeline's dashed line) 20, wires on top of wires 10, crossings 5, plus small weights for area
 and wire length. A result is worse when its defects score higher, or, with
 equal defects, when area or wire length grew by more than a tenth. A worse
 result, or one that swaps two shapes' sides at safe or normal, is retried one
@@ -371,7 +395,7 @@ learning, so the report can say why (--verbose lists the signals):
   swimlanes side by side as bands);
 - sequence: two or more lifelines (the UML lifeline shape, or dashed vertical
   lines without arrowheads, free or hanging from a shape) with horizontal
-  messages between them;
+  messages between them, attached or with free ends on the lifelines;
 - class: two or more UML classes (the editor's class shape: a swimlane
   stacking its rows), most shapes being classes, with UML relation ends on the
   wires;

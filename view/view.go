@@ -38,8 +38,10 @@ type Node struct {
 	// without a border.
 	TextOnly bool
 	// Overlay is set for frames drawn over other shapes on purpose, such as the
-	// alt and loop frames of a sequence diagram. They are never pushed aside
-	// and never count as overlapping.
+	// alt and loop frames of a sequence diagram: the editor's UML frame, or an
+	// unfilled rectangle whose text starts with an interaction operator (see
+	// IsDrawnFrame). They are never pushed aside and never count as
+	// overlapping.
 	Overlay bool
 	// Parent is the container this node sits in, nil at the top.
 	Parent   *Node
@@ -103,8 +105,8 @@ func Build(p *doc.Page) *View {
 			Text: PlainText(c.Label(), st.Value("html", "0") == "1"),
 		}
 		n.TextOnly = isTextOnly(st)
-		n.Overlay = n.Shape == "umlFrame"
 		n.Container = isContainer(c, st)
+		n.Overlay = n.Shape == "umlFrame" || (!n.Container && IsDrawnFrame(st, n.Text))
 		nodes[c.ID] = n
 	}
 	// A text box laid over a shape is part of that shape.
@@ -178,6 +180,25 @@ func hostOf(t *Node, shapes []*doc.Cell, nodes map[string]*Node) *Node {
 		}
 	}
 	return best
+}
+
+// frameOperators are the UML interaction operators and the sd and ref
+// keywords a frame's title starts with.
+var frameOperators = map[string]bool{
+	"alt": true, "opt": true, "loop": true, "break": true, "par": true, "critical": true,
+	"neg": true, "assert": true, "ignore": true, "consider": true, "seq": true, "strict": true,
+	"ref": true, "sd": true,
+}
+
+// IsDrawnFrame reports a sequence diagram frame drawn as a plain unfilled
+// rectangle with its title in the top-left corner, such as "alt [valid]" or
+// "ref Login".
+func IsDrawnFrame(st doc.Style, text string) bool {
+	if st.Shape() != "rectangle" || st.Value("fillColor", "") != "none" || st.Value("verticalAlign", "middle") != "top" {
+		return false
+	}
+	f := strings.FieldsFunc(text, func(r rune) bool { return r == ' ' || r == '\n' || r == '[' || r == '(' || r == ':' })
+	return len(f) > 0 && frameOperators[strings.ToLower(f[0])]
 }
 
 func isGroup(c *doc.Cell) bool {

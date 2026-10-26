@@ -194,3 +194,26 @@ func TestFramesAreNotTargets(t *testing.T) {
 		t.Errorf("target %q, want bar", got)
 	}
 }
+
+// TestDrawnSequenceEndsStayFree: message ends on a UML lifeline's center line
+// and operand separators ending on a drawn frame's edges are left free.
+func TestDrawnSequenceEndsStayFree(t *testing.T) {
+	d, _, err := doc.Parse([]byte(`<mxGraphModel><root>
+  <mxCell id="0" /><mxCell id="1" parent="0" />
+  <mxCell id="a" value=":A" style="shape=umlLifeline;container=1;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="120" height="300" as="geometry" /></mxCell>
+  <mxCell id="b" value=":B" style="shape=umlLifeline;container=1;" vertex="1" parent="1"><mxGeometry x="160" y="0" width="120" height="300" as="geometry" /></mxCell>
+  <mxCell id="alt" value="alt [ok]" style="rounded=0;fillColor=none;align=left;verticalAlign=top;" vertex="1" parent="1"><mxGeometry x="20" y="100" width="260" height="120" as="geometry" /></mxCell>
+  <mxCell id="m" style="endArrow=block;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="60" y="140" as="sourcePoint" /><mxPoint x="220" y="140" as="targetPoint" /></mxGeometry></mxCell>
+  <mxCell id="sep" style="endArrow=none;dashed=1;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="20" y="170" as="sourcePoint" /><mxPoint x="280" y="170" as="targetPoint" /></mxGeometry></mxCell>
+</root></mxGraphModel>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := d.Pages[0]
+	Run(view.Build(p), defaults)
+	for _, id := range []string{"m", "sep"} {
+		if s, tg := p.Cell(id).Source(), p.Cell(id).Target(); s != "" || tg != "" {
+			t.Errorf("%s attached: source %q, target %q", id, s, tg)
+		}
+	}
+}

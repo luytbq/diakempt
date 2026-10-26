@@ -100,8 +100,16 @@ What the report says, and what to do:
   - "container ... in a hand-drawn sequence": hand-drawn sequences inside
     containers are not laid out;
   - "fewer than two lifelines": fewer than two dashed lines were recognized.
-- "seqlayout not possible: message ... does not join two lifelines": a found
-  or lost message, or an arrow to a note; the general tidy ran instead.
+- "seqlayout not possible: message ... does not join two lifelines" (an
+  attached message on a hand-drawn sequence) or "message ... does not touch a
+  lifeline" (UML lifelines): an arrow to a note, or a line that is neither a
+  message nor an operand separator across a frame; the general tidy ran
+  instead.
+- "seqlayout not possible: message ... is attached to ..., which is not on a
+  lifeline": a message connected to a container, or two messages connected
+  to one dot; detach the extra end in draw.io.
+- "seqlayout not possible: message ... has an end without a position": a
+  free end with no stored point; reconnect it in draw.io.
 - Kind unknown but the user says it is a class diagram drawn with plain boxes:
   classlayout only recognizes the editor's class shape; --type class forces
   the class layout on whatever shapes are there.

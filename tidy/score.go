@@ -96,6 +96,21 @@ func (d *Diagram) Measure() report.Metrics {
 			}
 		}
 	}
+	// A label struck through by a UML lifeline's dashed center line is as hard
+	// to read as one over a shape.
+	for _, n := range d.Nodes {
+		if n.V.Shape != "umlLifeline" {
+			continue
+		}
+		head := geom.ParseNumber(n.V.Style.Value("size", "40"))
+		c := n.Box.Center().X
+		line := geom.Segment{A: geom.Point{X: c, Y: n.Box.Y + head}, B: geom.Point{X: c, Y: n.Box.Bottom()}}
+		for _, l := range labels {
+			if line.CrossesRect(l, 2) {
+				m.LabelOverlaps++
+			}
+		}
+	}
 	for i := 0; i < len(d.Wires); i++ {
 		for j := i + 1; j < len(d.Wires); j++ {
 			m.WireCrossings += crossings(paths[i], paths[j])
