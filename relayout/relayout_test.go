@@ -98,3 +98,37 @@ func TestLongLabelsGetRoom(t *testing.T) {
 		t.Errorf("%d label overlaps", m.LabelOverlaps)
 	}
 }
+
+// TestNoteStaysInItsLane: a note without wires in one of two lanes side by
+// side stands beside a shape of its own lane, even when a shape of the other
+// lane is nearer.
+func TestNoteStaysInItsLane(t *testing.T) {
+	d, _, err := doc.Parse([]byte(`<mxGraphModel><root>
+  <mxCell id="0" /><mxCell id="1" parent="0" />
+  <mxCell id="la" value="Customer" style="swimlane;startSize=30;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="280" height="600" as="geometry" /></mxCell>
+  <mxCell id="lb" value="System" style="swimlane;startSize=30;" vertex="1" parent="1"><mxGeometry x="280" y="0" width="400" height="600" as="geometry" /></mxCell>
+  <mxCell id="s" style="ellipse;fillColor=#000000;" vertex="1" parent="la"><mxGeometry x="125" y="50" width="30" height="30" as="geometry" /></mxCell>
+  <mxCell id="a" value="Order" style="rounded=1;" vertex="1" parent="la"><mxGeometry x="80" y="120" width="120" height="50" as="geometry" /></mxCell>
+  <mxCell id="b" value="Check stock" style="rounded=1;" vertex="1" parent="lb"><mxGeometry x="40" y="420" width="120" height="50" as="geometry" /></mxCell>
+  <mxCell id="c" value="Confirm" style="rounded=1;" vertex="1" parent="lb"><mxGeometry x="200" y="520" width="120" height="50" as="geometry" /></mxCell>
+  <mxCell id="e" style="ellipse;shape=endState;fillColor=#000000;" vertex="1" parent="lb"><mxGeometry x="245" y="580" width="30" height="30" as="geometry" /></mxCell>
+  <mxCell id="n" value="The customer may cancel at any step" style="shape=note;whiteSpace=wrap;html=1;" vertex="1" parent="la"><mxGeometry x="40" y="420" width="200" height="80" as="geometry" /></mxCell>
+  <mxCell id="w1" style="endArrow=open;" edge="1" parent="1" source="s" target="a"><mxGeometry relative="1" as="geometry" /></mxCell>
+  <mxCell id="w2" style="endArrow=open;" edge="1" parent="1" source="a" target="b"><mxGeometry relative="1" as="geometry" /></mxCell>
+  <mxCell id="w3" style="endArrow=open;" edge="1" parent="1" source="b" target="c"><mxGeometry relative="1" as="geometry" /></mxCell>
+  <mxCell id="w4" style="endArrow=open;" edge="1" parent="1" source="c" target="e"><mxGeometry relative="1" as="geometry" /></mxCell>
+</root></mxGraphModel>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sd := segment.Split(view.Build(d.Pages[0])).Diagrams[0]
+	w := tidy.New(sd, text.Default())
+	if _, err := Run(w, sd, true, text.Default()); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range w.Nodes {
+		if n.V.ID == "n" && !n.Parent.Box.ContainsRect(n.Box) {
+			t.Errorf("note at %v is outside its lane %v", n.Box, n.Parent.Box)
+		}
+	}
+}

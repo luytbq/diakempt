@@ -410,14 +410,21 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 		if wired[n] {
 			continue
 		}
+		// A shape in a lane stands beside a shape of its own lane, if the
+		// lane has any; a shape in a pool's lane must.
 		var best *view.Node
-		bd := math.Inf(1)
-		for _, m := range byFlow {
-			if m == n || !wired[m] || (p.pool != nil && m.Parent != n.Parent) {
-				continue
+		for _, sameLane := range []bool{true, false} {
+			if best != nil || (!sameLane && p.pool != nil) {
+				break
 			}
-			if d := gap(n.Box, m.Box); d < bd {
-				best, bd = m, d
+			bd := math.Inf(1)
+			for _, m := range byFlow {
+				if m == n || !wired[m] || (sameLane && m.Parent != n.Parent) {
+					continue
+				}
+				if d := gap(n.Box, m.Box); d < bd {
+					best, bd = m, d
+				}
 			}
 		}
 		if best == nil {

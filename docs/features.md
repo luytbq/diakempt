@@ -103,7 +103,8 @@ scratch by the layout engine copied from flowcast, at every level. The diagram
 is written as a Flow Table: shapes become elements (diamonds with two or more
 outgoing wires are conditions; ellipses are starts, ends or externals; cylinders
 are data; others are tasks), wires become edges, swimlanes become lanes, shapes
-with no wire attach to the nearest wired shape. The current drawing supplies
+with no wire attach to the nearest wired shape (of their own lane, when the
+lane has one). The current drawing supplies
 the direction (lanes as columns or rows, else the way most wires go), the lane
 order, the main branch (the target most in line with its source) and the back
 edges (a depth-first walk in reading order).
