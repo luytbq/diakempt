@@ -61,10 +61,16 @@ func unsupported(format string, args ...any) error {
 	return &Unsupported{Reason: fmt.Sprintf(format, args...)}
 }
 
+// noWrap is the engine's widest label wrap width.
+const noWrap = 2000
+
 // Build writes a diagram as a Flow Table. withLanes selects a swimlane
 // diagram; without it, a flowchart.
 func Build(sd *segment.Diagram, withLanes bool) (*Plan, error) {
 	p := &Plan{nodes: map[string]*view.Node{}, edges: map[string]*edge{}, lanes: map[string]*view.Node{}, cfg: layout.DefaultConfig()}
+	// draw.io never wraps a wire's label: it has no width to wrap to. The
+	// engine must reserve room for it on one line.
+	p.cfg.LabelWrap = noWrap
 	var leaves []*view.Node
 	var containers []*view.Node
 	for _, n := range sd.Nodes {

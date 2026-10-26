@@ -109,7 +109,8 @@ order, the main branch (the target most in line with its source) and the back
 edges (a depth-first walk in reading order).
 
 The result keeps the diagram's top-left corner, the shapes' styles and text,
-and gives every wire right-angle waypoints through fixed ports. Shapes are
+and gives every wire right-angle waypoints through fixed ports. Wire labels
+get room on one line, since draw.io never wraps them. Shapes are
 sized from their text, measured at their own fontSize; shapes with HTML labels
 get whiteSpace=wrap so text wraps inside the computed size. Shapes without text, images, stencil
 icons (other than the flowchart library), state machine start and end states
