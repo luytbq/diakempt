@@ -392,7 +392,9 @@ learning, so the report can say why (--verbose lists the signals):
   direction, decision diamonds or start and end shapes, a clear start and end,
   no lanes;
 - swimlane: the same, inside swimlane containers (a pool with lanes, or
-  swimlanes side by side as bands);
+  swimlanes side by side as bands); in lanes, the state machine's initial and
+  final state shapes count as the activity's start and end shapes, not as
+  another notation;
 - sequence: two or more lifelines (the UML lifeline shape, or dashed vertical
   lines without arrowheads, free or hanging from a shape) with horizontal
   messages between them, attached or with free ends on the lifelines;

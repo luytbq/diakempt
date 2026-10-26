@@ -130,3 +130,35 @@ func TestDetectSurvivesMess(t *testing.T) {
 func tooSmall(r Result) bool {
 	return r.Scores[Flowchart] == 0 && r.Scores[Swimlane] == 0 && r.Scores[Sequence] == 0
 }
+
+// TestActivityWithFinalStateShapes: an activity diagram in lanes whose final
+// nodes use the state machine's endState shape is still a swimlane diagram.
+func TestActivityWithFinalStateShapes(t *testing.T) {
+	d, _, err := doc.Parse([]byte(`<mxGraphModel><root>
+  <mxCell id="0" /><mxCell id="1" parent="0" />
+  <mxCell id="l1" value="Customer" style="swimlane;startSize=30;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="240" height="600" as="geometry" /></mxCell>
+  <mxCell id="l2" value="System" style="swimlane;startSize=30;" vertex="1" parent="1"><mxGeometry x="240" y="0" width="240" height="600" as="geometry" /></mxCell>
+  <mxCell id="s" style="ellipse;fillColor=#000000;" vertex="1" parent="l1"><mxGeometry x="105" y="50" width="30" height="30" as="geometry" /></mxCell>
+  <mxCell id="a" value="Scan code" style="rounded=1;" vertex="1" parent="l1"><mxGeometry x="60" y="120" width="120" height="50" as="geometry" /></mxCell>
+  <mxCell id="b" value="Check" style="rounded=1;" vertex="1" parent="l2"><mxGeometry x="60" y="200" width="120" height="50" as="geometry" /></mxCell>
+  <mxCell id="q" value="" style="rhombus;" vertex="1" parent="l2"><mxGeometry x="100" y="290" width="40" height="40" as="geometry" /></mxCell>
+  <mxCell id="c" value="Reject" style="rounded=1;" vertex="1" parent="l2"><mxGeometry x="60" y="380" width="120" height="50" as="geometry" /></mxCell>
+  <mxCell id="e1" style="ellipse;html=1;shape=endState;fillColor=#000000;" vertex="1" parent="l2"><mxGeometry x="105" y="480" width="30" height="30" as="geometry" /></mxCell>
+  <mxCell id="d" value="Ride" style="rounded=1;" vertex="1" parent="l1"><mxGeometry x="60" y="380" width="120" height="50" as="geometry" /></mxCell>
+  <mxCell id="e2" style="ellipse;html=1;shape=endState;fillColor=#000000;" vertex="1" parent="l1"><mxGeometry x="105" y="480" width="30" height="30" as="geometry" /></mxCell>
+  <mxCell id="w1" style="endArrow=open;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="s" target="a"><mxGeometry relative="1" as="geometry" /></mxCell>
+  <mxCell id="w2" style="endArrow=open;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="a" target="b"><mxGeometry relative="1" as="geometry" /></mxCell>
+  <mxCell id="w3" style="endArrow=open;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="b" target="q"><mxGeometry relative="1" as="geometry" /></mxCell>
+  <mxCell id="w4" value="[no]" style="endArrow=open;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="q" target="c"><mxGeometry relative="1" as="geometry" /></mxCell>
+  <mxCell id="w5" value="[yes]" style="endArrow=open;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="q" target="d"><mxGeometry relative="1" as="geometry" /></mxCell>
+  <mxCell id="w6" style="endArrow=open;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="c" target="e1"><mxGeometry relative="1" as="geometry" /></mxCell>
+  <mxCell id="w7" style="endArrow=open;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="d" target="e2"><mxGeometry relative="1" as="geometry" /></mxCell>
+</root></mxGraphModel>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rs := kinds(t, d)
+	if len(rs) != 1 || rs[0].Kind != Swimlane {
+		t.Fatalf("got %+v, want one swimlane diagram", rs)
+	}
+}

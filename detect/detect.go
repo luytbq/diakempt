@@ -193,7 +193,8 @@ func measure(d *segment.Diagram) *features {
 				f.decisions++
 			}
 		case n.Shape == "ellipse" || n.Shape == "doubleEllipse" || n.Shape == "mxgraph.flowchart.terminator" ||
-			n.Shape == "mxgraph.flowchart.start_1" || n.Shape == "mxgraph.flowchart.start_2":
+			n.Shape == "mxgraph.flowchart.start_1" || n.Shape == "mxgraph.flowchart.start_2" ||
+			n.Shape == "startState" || n.Shape == "endState":
 			if in[n] == 0 || out[n] == 0 {
 				f.terminals++
 			}
@@ -206,6 +207,17 @@ func measure(d *segment.Diagram) *features {
 		}
 	}
 	f.lanes, f.nonLaneGroups = lanes(d)
+	// In lanes, the state machine dots are an activity diagram's initial and
+	// final nodes, drawn with the same shapes.
+	if f.lanes > 0 {
+		var keep []string
+		for _, why := range f.foreign {
+			if why != "state machine" {
+				keep = append(keep, why)
+			}
+		}
+		f.foreign = keep
+	}
 	f.handLifelines, f.messages = sequenceShape(d)
 	if f.lifelines > 0 {
 		f.messages = umlMessages(d)
