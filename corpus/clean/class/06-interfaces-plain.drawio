@@ -1,0 +1,37 @@
+<mxfile host="Electron" version="24.7.17">
+  <diagram id="interfaces-plain" name="Payment subsystem context">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="CheckoutService" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="400" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="RefundService (later)" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="380" width="220" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="«interface»&lt;br&gt;IPaymentGateway" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="40" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="«interface»&lt;br&gt;IReceiptSender" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="200" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="«subsystem»&lt;br&gt;PaymentSubsystem" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="160" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="" style="endArrow=open;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="c1" target="c3">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c7" value="" style="endArrow=open;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="c2" target="c3">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c8" value="" style="endArrow=block;endFill=0;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="c5" target="c3">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c9" value="«use»" style="endArrow=open;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="c5" target="c4">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

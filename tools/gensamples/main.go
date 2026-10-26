@@ -23,7 +23,7 @@ func main() {
 		"architecture":  {arch(3, 2), arch(4, 3), arch(2, 4)},
 		"network":       {network(5), network(8)},
 		"mindmap":       {mindmap(5), mindmap(8)},
-		"class":         {class(3), class(5), classModel("bank", false), classModel("bank-scattered", true), classAnalysis()},
+		"class":         {class(3), class(5), classModel("bank", false), classModel("bank-scattered", true), classAnalysis(), classInterfaces()},
 		"er":            {er(3), er(4), erModel("shop", false), erModel("shop-scattered", true)},
 		"state":         {state(4), state(6)},
 		"usecase":       {useCases("library", false), useCases("library-scattered", true)},
@@ -750,6 +750,28 @@ func communication(slug string, scattered bool) func() *page {
 		} {
 			p.edge("1", m.text, link, ids[m.a], ids[m.b])
 		}
+		return p
+	}
+}
+
+// classInterfaces draws a subsystem's context with plain boxes: clients that
+// depend on interfaces (dashed open arrows), and the subsystem realizing them
+// (dashed hollow triangles), scattered.
+func classInterfaces() func() *page {
+	return func() *page {
+		p := &page{slug: "interfaces-plain", title: "Payment subsystem context"}
+		box := "rounded=0;whiteSpace=wrap;html=1;"
+		client := p.vertex("1", "CheckoutService", box, 500, 400, 200, 50)
+		admin := p.vertex("1", "RefundService (later)", box, 40, 380, 220, 50)
+		pay := p.vertex("1", "«interface»<br>IPaymentGateway", box, 300, 40, 220, 70)
+		notify := p.vertex("1", "«interface»<br>IReceiptSender", box, 700, 200, 220, 70)
+		sub := p.vertex("1", "«subsystem»<br>PaymentSubsystem", box, 60, 160, 260, 70)
+		dep := "endArrow=open;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;"
+		real := "endArrow=block;endFill=0;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;"
+		p.edge("1", "", dep, client, pay)
+		p.edge("1", "", dep, admin, pay)
+		p.edge("1", "", real, sub, pay)
+		p.edge("1", "«use»", dep, sub, notify)
 		return p
 	}
 }

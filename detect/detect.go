@@ -100,21 +100,26 @@ type features struct {
 	lanes          int
 	foreign        []string // shapes or arrows of other notations
 	classes        int      // UML class shapes
-	umlWires       int      // wires with UML relation ends
-	tables         int      // ER tables
-	erWires        int      // wires with ER relation ends
-	starts, ends   int      // state machine start and final states
-	lifelines      int
-	handLifelines  int
-	messages       int
-	nonLaneGroups  int
-	actors         int // UML actors
-	useCases       int // ellipses with text
-	others         int // leaves that are neither, nor notes or frames
-	useCaseWires   int // wires joining actors and use cases
-	objects        int // boxes named as instances, ":Class" or "name:Class"
-	numbered       int // wires without arrowheads labeled with message numbers
-	signals        []string
+	// classifierBoxes are other boxes standing for classifiers: a stereotype
+	// such as «interface» or «subsystem», or a package's folder. namedBoxes
+	// are plain boxes holding just a name, as classes drawn without
+	// compartments do.
+	classifierBoxes, namedBoxes int
+	umlWires                    int // wires with UML relation ends
+	tables                      int // ER tables
+	erWires                     int // wires with ER relation ends
+	starts, ends                int // state machine start and final states
+	lifelines                   int
+	handLifelines               int
+	messages                    int
+	nonLaneGroups               int
+	actors                      int // UML actors
+	useCases                    int // ellipses with text
+	others                      int // leaves that are neither, nor notes or frames
+	useCaseWires                int // wires joining actors and use cases
+	objects                     int // boxes named as instances, ":Class" or "name:Class"
+	numbered                    int // wires without arrowheads labeled with message numbers
+	signals                     []string
 }
 
 func (f *features) signal(format string, args ...any) {
@@ -133,6 +138,10 @@ func measure(d *segment.Diagram) *features {
 		}
 		if IsClass(n) {
 			f.classes++
+		} else if isClassifierBox(n) {
+			f.classifierBoxes++
+		} else if isNamedBox(n) {
+			f.namedBoxes++
 		}
 		if n.Shape == "table" {
 			f.tables++
@@ -341,10 +350,15 @@ func (f *features) sequenceScore() float64 {
 // classScore scores a UML class diagram: most shapes are classes, and the
 // wires between them use UML relation ends.
 func (f *features) classScore() float64 {
-	if f.classes < 2 || f.leaves == 0 {
+	classes := f.classes
+	// Boxes drawn as classifiers only count when UML relations join them.
+	if f.umlWires > 0 && classes+f.classifierBoxes >= 2 {
+		classes += f.classifierBoxes + f.namedBoxes
+	}
+	if classes < 2 || f.leaves == 0 {
 		return 0
 	}
-	share := float64(f.classes) / float64(f.leaves)
+	share := float64(classes) / float64(f.leaves)
 	rel := 0.5
 	if f.umlWires > 0 {
 		rel = 1
@@ -484,6 +498,50 @@ func numberLess(a, b []int) bool {
 // drawn; a filled dot is an initial node.
 func IsUseCase(n *view.Node) bool {
 	return n.Shape == "ellipse" && n.Text != "" && !n.Container && n.Style.Value("fillColor", "") != "#000000"
+}
+
+// classifierStereotypes name what a box drawn with a stereotype stands for
+// in a class, component or package diagram.
+var classifierStereotypes = map[string]bool{
+	"interface": true, "subsystem": true, "component": true, "class": true, "abstract": true,
+	"enumeration": true, "datatype": true, "utility": true, "exception": true, "service": true,
+	"boundary": true, "control": true, "entity": true, "library": true, "module": true,
+}
+
+// isClassifierBox reports a box standing for a classifier: a rectangle or
+// component carrying a classifier stereotype, or a package's folder that
+// holds no shapes.
+func isClassifierBox(n *view.Node) bool {
+	if n.Container || n.TextOnly {
+		return false
+	}
+	switch n.Shape {
+	case "folder":
+		return true
+	case "rectangle", "component", "module":
+		return classifierStereotypes[Stereotype(n.Text)]
+	}
+	return false
+}
+
+// namePattern matches a box holding just a name: an identifier, perhaps
+// followed by a remark in parentheses.
+var namePattern = regexp.MustCompile(`^[\p{L}_][\p{L}\w.-]*(\s*\(.*\))?$`)
+
+func isNamedBox(n *view.Node) bool {
+	return n.Shape == "rectangle" && !n.Container && !n.TextOnly && namePattern.MatchString(strings.TrimSpace(n.Text))
+}
+
+// Stereotype returns the first «name» or <<name>> in a text, lower case.
+func Stereotype(t string) string {
+	for _, q := range [][2]string{{"«", "»"}, {"<<", ">>"}} {
+		if i := strings.Index(t, q[0]); i >= 0 {
+			if j := strings.Index(t[i:], q[1]); j > 0 {
+				return strings.ToLower(strings.TrimSpace(t[i+len(q[0]) : i+j]))
+			}
+		}
+	}
+	return ""
 }
 
 // IsClass reports the editor's UML class shape: a swimlane stacking its rows

@@ -202,10 +202,11 @@ A diagram detected (or forced) as a class diagram is laid out from scratch:
 
 - ranks from the top: the target of a generalization or realization (hollow
   triangle) above its source, the diamond end of a composition or aggregation
-  above the other end where that does not contradict a generalization; a class
-  with neither sits in the rank of its median neighbor;
-- when no relation is a generalization, realization, composition or
-  aggregation: boundary classes on top, controls under them and entities at
+  above the other end, and the client of a dependency (a dashed open arrow)
+  above its supplier, each where it does not contradict the ones before; a
+  class with none sits in the rank of its median neighbor;
+- when no relation is a generalization, realization, composition,
+  aggregation or dependency: boundary classes on top, controls under them and entities at
   the bottom, when every class carries one of those stereotypes («boundary»,
   «control», «entity») and they are not all the same; otherwise the rows the
   classes were drawn in;
@@ -469,7 +470,10 @@ learning, so the report can say why (--verbose lists the signals):
   messages between them, attached or with free ends on the lifelines;
 - class: two or more UML classes (the editor's class shape: a swimlane
   stacking its rows), most shapes being classes, with UML relation ends on the
-  wires;
+  wires; when UML relations (diamonds, hollow triangles) join them, boxes
+  standing for classifiers count as classes too: a rectangle or component with
+  a classifier stereotype («interface», «subsystem», «component», «entity»,
+  ...), a package's folder, and a plain box holding just a name;
 - state: three or more shapes with the editor's initial or final state dots
   (shape=startState, shape=endState), mostly one-way transitions, no lanes,
   lifelines or containers, no shapes of other notations;

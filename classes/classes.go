@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/luytbq/diakempt/detect"
 	"github.com/luytbq/diakempt/geom"
 	"github.com/luytbq/diakempt/tidy"
 )
@@ -40,6 +41,9 @@ const (
 	generalization
 	// composition and aggregation: the diamond end is the whole, drawn above.
 	whole
+	// dependency (a dashed open arrow): the client, at the tail, is drawn
+	// above the supplier it uses.
+	uses
 )
 
 type link struct {
@@ -108,6 +112,8 @@ func classify(w *tidy.Wire) *link {
 		l.rel, l.up, l.down = whole, w.Src, w.Dst
 	case strings.HasPrefix(end, "diamond"):
 		l.rel, l.up, l.down = whole, w.Dst, w.Src
+	case w.Style.Value("dashed", "0") == "1" && start == "none" && (end == "open" || end == "classic"):
+		l.rel, l.up, l.down = uses, w.Src, w.Dst
 	}
 	if l.up == l.down {
 		l.rel = free
@@ -142,7 +148,7 @@ func ranks(nodes []*tidy.Node, links []*link) map[*tidy.Node]int {
 		return drawnRanks(nodes)
 	}
 	ranked := map[*tidy.Node]bool{}
-	for _, rel := range []relation{generalization, whole} {
+	for _, rel := range []relation{generalization, whole, uses} {
 		for _, l := range links {
 			if l.rel != rel {
 				continue
@@ -251,7 +257,7 @@ var analysisRanks = map[string]int{"boundary": 0, "control": 1, "entity": 2}
 func drawnRanks(nodes []*tidy.Node) map[*tidy.Node]int {
 	rank := map[*tidy.Node]int{}
 	for _, n := range nodes {
-		r, ok := analysisRanks[stereotype(n.V.Text)]
+		r, ok := analysisRanks[detect.Stereotype(n.V.Text)]
 		if !ok {
 			rank = nil
 			break
@@ -280,18 +286,6 @@ func drawnRanks(nodes []*tidy.Node) map[*tidy.Node]int {
 		rank[n] = r
 	}
 	return rank
-}
-
-// stereotype returns the first «name» or <<name>> in a text, lower case.
-func stereotype(t string) string {
-	for _, q := range [][2]string{{"«", "»"}, {"<<", ">>"}} {
-		if i := strings.Index(t, q[0]); i >= 0 {
-			if j := strings.Index(t[i:], q[1]); j > 0 {
-				return strings.ToLower(strings.TrimSpace(t[i+len(q[0]) : i+j]))
-			}
-		}
-	}
-	return ""
 }
 
 // dense renumbers ranks 0, 1, 2, ... keeping their order.
