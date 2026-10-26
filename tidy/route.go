@@ -443,6 +443,16 @@ func (g *grid) search(from, to geom.Point, others []geom.Polyline) (geom.Polylin
 		return nil, 0
 	}
 	pt := func(i, j int) geom.Point { return geom.Point{X: g.xs[i], Y: g.ys[j]} }
+	type boxed struct {
+		s              geom.Segment
+		x0, x1, y0, y1 float64
+	}
+	var segs []boxed
+	for _, o := range others {
+		for _, os := range o.Segments() {
+			segs = append(segs, boxed{os, math.Min(os.A.X, os.B.X) - 1, math.Max(os.A.X, os.B.X) + 1, math.Min(os.A.Y, os.B.Y) - 1, math.Max(os.A.Y, os.B.Y) + 1})
+		}
+	}
 	dist := map[state]float64{}
 	prev := map[state]state{}
 	start := state{fi, fj, 0}
@@ -482,14 +492,22 @@ func (g *grid) search(from, to geom.Point, others []geom.Polyline) (geom.Polylin
 				c += bendCost
 			}
 			seg := geom.Segment{A: a, B: b}
-			for _, o := range others {
-				for _, os := range o.Segments() {
-					if seg.Intersects(os) {
-						c += crossCost
-					}
-					if seg.Overlaps(os, 1) {
-						c += overlapCost
-					}
+			x0, x1, y0, y1 := a.X, b.X, a.Y, b.Y
+			if x0 > x1 {
+				x0, x1 = x1, x0
+			}
+			if y0 > y1 {
+				y0, y1 = y1, y0
+			}
+			for _, os := range segs {
+				if os.x1 < x0 || os.x0 > x1 || os.y1 < y0 || os.y0 > y1 {
+					continue
+				}
+				if seg.Intersects(os.s) {
+					c += crossCost
+				}
+				if seg.Overlaps(os.s, 1) {
+					c += overlapCost
 				}
 			}
 			ns := state{ni, nj, mv[2]}
