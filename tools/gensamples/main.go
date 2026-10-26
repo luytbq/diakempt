@@ -28,6 +28,7 @@ func main() {
 		"state":         {state(4), state(6)},
 		"usecase":       {useCases("library", false), useCases("library-scattered", true)},
 		"communication": {communication("borrow", false), communication("borrow-scattered", true)},
+		"package":       {packageLayers()},
 		"handflow":      {handflow("basic", 12, false), handflow("library", 12, true), handflow("big-font", 16, false)},
 	} {
 		dir := filepath.Join(*out, kind)
@@ -772,6 +773,36 @@ func classInterfaces() func() *page {
 		p.edge("1", "", dep, admin, pay)
 		p.edge("1", "", real, sub, pay)
 		p.edge("1", "«use»", dep, sub, notify)
+		return p
+	}
+}
+
+// packageLayers draws an architecture's layers as packages holding packages,
+// some in the wrong place for their dependencies, and an interface with the
+// subsystem realizing it inside one.
+func packageLayers() func() *page {
+	return func() *page {
+		p := &page{slug: "layers", title: "Layers"}
+		layer := "shape=folder;tabWidth=120;tabHeight=24;tabPosition=left;html=1;whiteSpace=wrap;verticalAlign=top;align=left;spacingLeft=10;spacingTop=22;fillColor=none;fontStyle=1;"
+		pkg := "shape=folder;tabWidth=80;tabHeight=20;tabPosition=left;html=1;whiteSpace=wrap;verticalAlign=top;spacingTop=20;"
+		ui := p.vertex("1", "«layer»<br>Presentation", layer, 40, 40, 900, 160)
+		app := p.vertex("1", "«layer»<br>Application", layer, 40, 260, 700, 160)
+		tech := p.vertex("1", "«layer»<br>Infrastructure", layer, 40, 480, 1000, 300)
+		web := p.vertex(ui, "WebApp", pkg, 600, 50, 150, 80)
+		api := p.vertex(ui, "Api", pkg, 100, 50, 150, 80)
+		orders := p.vertex(app, "Orders", pkg, 450, 50, 150, 80)
+		billing := p.vertex(app, "Billing", pkg, 60, 50, 150, 80)
+		pay := p.vertex(tech, "Payments", "shape=folder;tabWidth=80;tabHeight=20;tabPosition=left;html=1;whiteSpace=wrap;verticalAlign=top;align=left;spacingTop=20;fillColor=none;", 500, 40, 420, 230)
+		iface := p.vertex(pay, "«interface»<br>IPayments", "rounded=0;whiteSpace=wrap;html=1;", 20, 150, 160, 50)
+		sub := p.vertex(pay, "«subsystem»<br>PaymentSubsystem", "shape=component;align=left;spacingLeft=36;rounded=0;whiteSpace=wrap;html=1;", 220, 50, 180, 50)
+		store := p.vertex(tech, "Storage", pkg, 60, 120, 150, 80)
+		dep := "endArrow=open;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;"
+		p.edge("1", "", dep, web, api)
+		p.edge("1", "", dep, api, orders)
+		p.edge("1", "", dep, orders, billing)
+		p.edge("1", "", dep, billing, iface)
+		p.edge("1", "", dep, orders, store)
+		p.edge("1", "", "endArrow=block;endFill=0;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;", sub, iface)
 		return p
 	}
 }

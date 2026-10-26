@@ -28,7 +28,7 @@ func (l Level) rank() int {
 
 // Kinds lists the diagram kinds diakempt can be told to assume with
 // Options.Kind. Unknown means "use the general tidy-up".
-var Kinds = []string{"flowchart", "swimlane", "sequence", "class", "state", "er", "usecase", "communication", "unknown"}
+var Kinds = []string{"flowchart", "swimlane", "sequence", "class", "state", "er", "usecase", "communication", "package", "unknown"}
 
 // Operation is one kind of change a level performs. Each can be switched on or
 // off on its own, overriding the level.
@@ -47,6 +47,7 @@ var Operations = []Operation{
 	{"classlayout", Safe, "lay recognized class diagrams out: parents above children, generalizations as trunks"},
 	{"erlayout", Safe, "lay recognized ER diagrams out: tables in columns, the one side of each relation left of the many side"},
 	{"commlayout", Safe, "lay recognized communication diagrams out: columns from the actor of the first message, objects in message order"},
+	{"pkglayout", Safe, "lay recognized package diagrams out: top-level packages in their drawn rows, nested ones ranked by their relations"},
 	{"usecaselayout", Safe, "lay recognized use case diagrams out: use cases in a column in the system boundary, actors beside it"},
 	{"separate", Safe, "push overlapping nodes apart"},
 	{"containers", Safe, "grow containers to fit their children"},

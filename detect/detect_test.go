@@ -54,6 +54,7 @@ var want = map[string]string{
 	"state":              State,
 	"usecase":            UseCase,
 	"communication":      Comm,
+	"package":            Package,
 }
 
 func TestDetectCleanCorpus(t *testing.T) {

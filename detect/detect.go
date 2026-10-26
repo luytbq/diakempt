@@ -31,6 +31,7 @@ const (
 	ER        = "er"
 	UseCase   = "usecase"
 	Comm      = "communication"
+	Package   = "package"
 	Unknown   = "unknown"
 )
 
@@ -65,8 +66,9 @@ func Detect(d *segment.Diagram) Result {
 		ER:        f.erScore(),
 		UseCase:   f.useCaseScore(),
 		Comm:      f.commScore(),
+		Package:   f.packageScore(),
 	}
-	kinds := []string{Flowchart, Swimlane, Sequence, Class, State, ER, UseCase, Comm}
+	kinds := []string{Flowchart, Swimlane, Sequence, Class, State, ER, UseCase, Comm, Package}
 	sort.SliceStable(kinds, func(i, j int) bool { return scores[kinds[i]] > scores[kinds[j]] })
 	best, second := kinds[0], scores[kinds[1]]
 	r := Result{Best: best, Scores: scores, Signals: f.signals}
@@ -105,21 +107,27 @@ type features struct {
 	// are plain boxes holding just a name, as classes drawn without
 	// compartments do.
 	classifierBoxes, namedBoxes int
-	umlWires                    int // wires with UML relation ends
-	tables                      int // ER tables
-	erWires                     int // wires with ER relation ends
-	starts, ends                int // state machine start and final states
-	lifelines                   int
-	handLifelines               int
-	messages                    int
-	nonLaneGroups               int
-	actors                      int // UML actors
-	useCases                    int // ellipses with text
-	others                      int // leaves that are neither, nor notes or frames
-	useCaseWires                int // wires joining actors and use cases
-	objects                     int // boxes named as instances, ":Class" or "name:Class"
-	numbered                    int // wires without arrowheads labeled with message numbers
-	signals                     []string
+	// folders are package shapes; nested ones hold other shapes.
+	folders, nestedFolders int
+	containers             int
+	// depWires are dashed or carry UML or ER ends, as dependencies and
+	// relations between packages do.
+	depWires      int
+	umlWires      int // wires with UML relation ends
+	tables        int // ER tables
+	erWires       int // wires with ER relation ends
+	starts, ends  int // state machine start and final states
+	lifelines     int
+	handLifelines int
+	messages      int
+	nonLaneGroups int
+	actors        int // UML actors
+	useCases      int // ellipses with text
+	others        int // leaves that are neither, nor notes or frames
+	useCaseWires  int // wires joining actors and use cases
+	objects       int // boxes named as instances, ":Class" or "name:Class"
+	numbered      int // wires without arrowheads labeled with message numbers
+	signals       []string
 }
 
 func (f *features) signal(format string, args ...any) {
@@ -135,6 +143,15 @@ func measure(d *segment.Diagram) *features {
 		}
 		if why := foreignShape(n); why != "" {
 			f.foreign = append(f.foreign, why)
+		}
+		if n.Shape == "folder" {
+			f.folders++
+			if n.Container && len(n.Children) > 0 {
+				f.nestedFolders++
+			}
+		}
+		if n.Container {
+			f.containers++
 		}
 		if IsClass(n) {
 			f.classes++
@@ -171,6 +188,9 @@ func measure(d *segment.Diagram) *features {
 	}
 	var down, up, right, left int
 	for _, w := range d.Wires {
+		if w.Style.Value("dashed", "0") == "1" || foreignWire(w) != "" {
+			f.depWires++
+		}
 		if why := foreignWire(w); why != "" {
 			f.foreign = append(f.foreign, why)
 			if strings.HasPrefix(why, "UML") {
@@ -369,6 +389,28 @@ func (f *features) classScore() float64 {
 		rel = 1
 	}
 	s := 0.6*share + 0.4*rel
+	if f.lifelines > 0 || f.handLifelines > 0 || f.lanes > 0 || f.nestedFolders > 0 {
+		s *= 0.5
+	}
+	return s
+}
+
+// packageScore scores a package diagram: packages (folders) holding other
+// packages or classifiers, joined by dependencies.
+func (f *features) packageScore() float64 {
+	if f.nestedFolders == 0 || f.folders < 2 {
+		return 0
+	}
+	shapes := f.leaves + f.containers
+	share := float64(f.folders+f.classifierBoxes+f.classes) / float64(shapes)
+	if share > 1 {
+		share = 1
+	}
+	rel := 1.0
+	if f.wires > 0 {
+		rel = float64(f.depWires) / float64(f.wires)
+	}
+	s := 0.7*share + 0.3*rel
 	if f.lifelines > 0 || f.handLifelines > 0 || f.lanes > 0 {
 		s *= 0.5
 	}

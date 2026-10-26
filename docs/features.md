@@ -55,7 +55,7 @@ normalized is filled at the aggressive level only, and left out when empty.
 | Flag | Effect |
 |---|---|
 | --level safe, normal, aggressive | how far the layout may change; default normal |
-| --type flowchart, swimlane, sequence, class, state, er, usecase, communication, unknown | treat every diagram as this kind |
+| --type flowchart, swimlane, sequence, class, state, er, usecase, communication, package, unknown | treat every diagram as this kind |
 | --with-NAME | run operation NAME whatever the level |
 | --no-NAME | skip operation NAME |
 | --force | keep results that score worse than the original |
@@ -92,7 +92,7 @@ wire, end, target and distance.
 
 Operations, by the lowest level that runs them:
 
-- safe: snap, flowlayout, seqlayout, classlayout, erlayout, commlayout, usecaselayout, separate, containers, reroute, labels
+- safe: snap, flowlayout, seqlayout, classlayout, erlayout, commlayout, pkglayout, usecaselayout, separate, containers, reroute, labels
 - normal: align, resize, samesize, spacing, compact, grid
 - aggressive: normalize, relayout
 
@@ -279,6 +279,30 @@ from the link's source to its target, stay true. The diagram keeps its
 top-left corner. A container, a link with a free end or ending on a text
 falls back to the general operations, as does a result that scores worse.
 
+### pkglayout (all levels)
+
+A diagram detected (or forced) as a package diagram is laid out from
+scratch, inside out:
+
+- the top-level packages keep the rows they were drawn in, so layers stay in
+  the author's order; packages standing alone in their row, such as layers,
+  take the width of the widest of them;
+- inside a package, what it holds goes in rows ranked by the realizations and
+  generalizations between them (an interface above what realizes it);
+  dependencies do not rank, so packages of one layer that use each other stay
+  side by side; without such relations they keep the rows they were drawn in;
+- each row is centered in its package and ordered to keep dependencies from
+  crossing (sweeps over the average position of what each member, or
+  anything inside it, depends on or is depended on by);
+- every package shrinks or grows to fit what it holds, with room for its
+  title below its tab; shapes holding nothing keep their size;
+- dependencies are routed around the shapes afterwards; free texts move with
+  the shape they belong to.
+
+The diagram keeps its top-left corner. A shape inside a container that is
+not part of the diagram, a dependency with a free end or ending on a text
+falls back to the general operations, as does a result that scores worse.
+
 ### usecaselayout (all levels)
 
 A diagram detected (or forced) as a use case diagram is laid out from
@@ -455,7 +479,7 @@ Each setting is a flag taking a number in its range.
 
 ## Detected kinds
 
-Each diagram is scored as flowchart, swimlane, sequence, class, state, er, usecase and communication by rules, never by
+Each diagram is scored as flowchart, swimlane, sequence, class, state, er, usecase, communication and package by rules, never by
 learning, so the report can say why (--verbose lists the signals):
 
 - flowchart: three or more shapes, mostly one-way arrows going the same
@@ -478,6 +502,9 @@ learning, so the report can say why (--verbose lists the signals):
 - state: three or more shapes with the editor's initial or final state dots
   (shape=startState, shape=endState), mostly one-way transitions, no lanes,
   lifelines or containers, no shapes of other notations;
+- package: two or more packages (shape=folder), at least one holding other
+  shapes, most shapes being packages or classifiers, most wires dashed or
+  with UML ends; nested packages push the class score down;
 - communication: two or more objects (rectangles whose text has a line such
   as ":Class" or "name:Class", or is underlined) with links without
   arrowheads labeled with message numbers ("1.1: ..."), most shapes being
@@ -502,7 +529,7 @@ small to judge (fewer than three shapes or two directed wires) are unknown.
 Flowcharts, swimlanes and state machines are laid out from scratch (see flowlayout below),
 class diagrams by classlayout, ER diagrams by erlayout, sequence diagrams by
 seqlayout, use case diagrams by usecaselayout, communication diagrams by
-commlayout; unknown diagrams get the general operations. --type overrides the
+commlayout, package diagrams by pkglayout; unknown diagrams get the general operations. --type overrides the
 detected kind, so --type flowchart or --type swimlane forces a relayout attempt
 and --type unknown prevents one.
 

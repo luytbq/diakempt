@@ -12,6 +12,7 @@ import (
 	"github.com/luytbq/diakempt/geom"
 	"github.com/luytbq/diakempt/issue"
 	"github.com/luytbq/diakempt/normalize"
+	"github.com/luytbq/diakempt/packages"
 	"github.com/luytbq/diakempt/relayout"
 	"github.com/luytbq/diakempt/report"
 	"github.com/luytbq/diakempt/segment"
@@ -209,6 +210,7 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 		{detect.ER, "erlayout", "an ER diagram", classes.LayoutER},
 		{detect.UseCase, "usecaselayout", "a use case diagram", usecase.Layout},
 		{detect.Comm, "commlayout", "a communication diagram", communication.Layout},
+		{detect.Package, "pkglayout", "a package diagram", packages.Layout},
 	} {
 		if dr.Kind != k.kind || !opt.enabled(k.op, lv) {
 			continue

@@ -56,7 +56,7 @@ out; it moves with its nearest diagram.
 **Segment** - splitting a page into diagrams and decoration.
 
 **Kind** - what sort of diagram something is: flowchart, swimlane, sequence,
-class, state, er, usecase, communication, or unknown.
+class, state, er, usecase, communication, package, or unknown.
 
 **Lifeline** - a participant of a sequence diagram: the editor's UML lifeline
 shape, a head with a dashed line below it. **Activation bar** - a narrow box
