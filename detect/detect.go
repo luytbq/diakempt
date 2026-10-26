@@ -27,6 +27,7 @@ const (
 	Class     = "class"
 	State     = "state"
 	ER        = "er"
+	UseCase   = "usecase"
 	Unknown   = "unknown"
 )
 
@@ -59,8 +60,9 @@ func Detect(d *segment.Diagram) Result {
 		Class:     f.classScore(),
 		State:     f.stateScore(),
 		ER:        f.erScore(),
+		UseCase:   f.useCaseScore(),
 	}
-	kinds := []string{Flowchart, Swimlane, Sequence, Class, State, ER}
+	kinds := []string{Flowchart, Swimlane, Sequence, Class, State, ER, UseCase}
 	sort.SliceStable(kinds, func(i, j int) bool { return scores[kinds[i]] > scores[kinds[j]] })
 	best, second := kinds[0], scores[kinds[1]]
 	r := Result{Best: best, Scores: scores, Signals: f.signals}
@@ -102,6 +104,10 @@ type features struct {
 	handLifelines  int
 	messages       int
 	nonLaneGroups  int
+	actors         int // UML actors
+	useCases       int // ellipses with text
+	others         int // leaves that are neither, nor notes or frames
+	useCaseWires   int // wires joining actors and use cases
 	signals        []string
 }
 
@@ -124,6 +130,15 @@ func measure(d *segment.Diagram) *features {
 		}
 		if n.Shape == "table" {
 			f.tables++
+		}
+		switch {
+		case n.Container || n.TextOnly || n.Overlay || n.Shape == "note":
+		case n.Shape == "umlActor":
+			f.actors++
+		case IsUseCase(n):
+			f.useCases++
+		default:
+			f.others++
 		}
 		switch {
 		case n.Shape == "umlLifeline":
@@ -149,6 +164,9 @@ func measure(d *segment.Diagram) *features {
 		}
 		if w.Src == nil || w.Dst == nil || w.Src.Container || w.Dst.Container {
 			continue
+		}
+		if (w.Src.Shape == "umlActor" || IsUseCase(w.Src)) && (w.Dst.Shape == "umlActor" || IsUseCase(w.Dst)) {
+			f.useCaseWires++
 		}
 		f.attached++
 		end := w.Style.Value("endArrow", "classic") != "none"
@@ -256,6 +274,9 @@ func measure(d *segment.Diagram) *features {
 	if f.starts+f.ends > 0 {
 		f.signal("%d initial and %d final states", f.starts, f.ends)
 	}
+	if f.actors > 0 {
+		f.signal("%s, %s, %d wires between them", plural(f.actors, "actor"), plural(f.useCases, "use case"), f.useCaseWires)
+	}
 	if len(f.foreign) > 0 {
 		f.signal("other notation: %s", strings.Join(dedupe(f.foreign), ", "))
 	}
@@ -361,6 +382,27 @@ func (f *features) erScore() float64 {
 		s *= 0.5
 	}
 	return s
+}
+
+// useCaseScore scores a use case diagram: actors and use cases (ellipses),
+// joined by associations, includes and extends.
+func (f *features) useCaseScore() float64 {
+	if f.actors < 1 || f.useCases < 1 || f.useCaseWires < 1 || f.attached == 0 {
+		return 0
+	}
+	share := float64(f.actors+f.useCases) / float64(f.actors+f.useCases+f.others)
+	rel := float64(f.useCaseWires) / float64(f.attached)
+	s := 0.5*share + 0.5*rel
+	if f.lifelines > 0 || f.handLifelines > 0 || f.lanes > 0 || f.classes > 0 || f.tables > 0 || f.nonLaneGroups > 0 {
+		s *= 0.5
+	}
+	return s
+}
+
+// IsUseCase reports an ellipse with text and no solid fill, as use cases are
+// drawn; a filled dot is an initial node.
+func IsUseCase(n *view.Node) bool {
+	return n.Shape == "ellipse" && n.Text != "" && !n.Container && n.Style.Value("fillColor", "") != "#000000"
 }
 
 // IsClass reports the editor's UML class shape: a swimlane stacking its rows

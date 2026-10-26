@@ -74,6 +74,11 @@ What the report says, and what to do:
   relation with a free end, or a wire ending on a text. The general tidy
   still ran; attaching the relation to a table row in draw.io lets the ER
   layout run next time.
+- "usecaselayout not possible": the use case diagram holds a container, a
+  second boundary, a shape that is neither an actor, a use case, a note nor a
+  text, or a wire with a free end; the reason names it. The general tidy still
+  ran; attaching the wire, or moving the extra shape out of the diagram, lets
+  the use case layout run next time.
 - "flowlayout not possible" or "relayout not possible": the engine cannot
   represent the diagram. Map the reason to advice:
   - a wire with a free end: attach it in draw.io, or accept the general tidy;

@@ -26,6 +26,7 @@ func main() {
 		"class":        {class(3), class(5), classModel("bank", false), classModel("bank-scattered", true), classAnalysis()},
 		"er":           {er(3), er(4), erModel("shop", false), erModel("shop-scattered", true)},
 		"state":        {state(4), state(6)},
+		"usecase":      {useCases("library", false), useCases("library-scattered", true)},
 		"handflow":     {handflow("basic", 12, false), handflow("library", 12, true), handflow("big-font", 16, false)},
 	} {
 		dir := filepath.Join(*out, kind)
@@ -674,6 +675,46 @@ func classAnalysis() func() *page {
 		w := p.edge("1", "", assoc, ids[2], ids[5])
 		p.endLabel(w, "0..1", -0.85)
 		p.endLabel(w, "0..1", 0.85)
+		return p
+	}
+}
+
+// useCases draws a use case diagram: actors on both sides of a system
+// boundary drawn as an unfilled rectangle, use cases inside it, associations,
+// and an include and an extend.
+func useCases(slug string, scattered bool) func() *page {
+	return func() *page {
+		p := &page{slug: slug, title: "Library"}
+		jx := func(i int) float64 {
+			if !scattered {
+				return 0
+			}
+			return float64((i*37)%90 - 45)
+		}
+		p.vertex("1", "Library system", "rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=none;fontStyle=1;", 200, 40, 360, 640)
+		names := []string{"Search catalog", "Borrow book", "Return book", "Reserve book", "Pay fine", "Check member card", "Manage books"}
+		order := []int{0, 1, 2, 3, 4, 5, 6}
+		if scattered {
+			order = []int{4, 0, 6, 2, 5, 1, 3}
+		}
+		uc := make([]string, len(names))
+		for k, i := range order {
+			uc[i] = p.vertex("1", names[i], "ellipse;whiteSpace=wrap;html=1;", 300+jx(k), 80+float64(k)*85, 160, 60)
+		}
+		actor := "shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+		member := p.vertex("1", "Member", actor, 60, 160, 30, 60)
+		librarian := p.vertex("1", "Librarian", actor, 60, 480, 30, 60)
+		bank := p.vertex("1", "«system»<br>Payment service", actor, 680, 360, 30, 60)
+		assoc := "endArrow=none;html=1;"
+		for _, i := range []int{0, 1, 2, 3, 4} {
+			p.edge("1", "", assoc, member, uc[i])
+		}
+		for _, i := range []int{1, 2, 6} {
+			p.edge("1", "", assoc, librarian, uc[i])
+		}
+		p.edge("1", "", assoc, uc[4], bank)
+		p.edge("1", "«include»", "endArrow=open;dashed=1;html=1;", uc[1], uc[5])
+		p.edge("1", "«extend»", "endArrow=open;dashed=1;html=1;", uc[4], uc[2])
 		return p
 	}
 }

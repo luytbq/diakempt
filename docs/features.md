@@ -55,7 +55,7 @@ normalized is filled at the aggressive level only, and left out when empty.
 | Flag | Effect |
 |---|---|
 | --level safe, normal, aggressive | how far the layout may change; default normal |
-| --type flowchart, swimlane, sequence, class, state, er, unknown | treat every diagram as this kind |
+| --type flowchart, swimlane, sequence, class, state, er, usecase, unknown | treat every diagram as this kind |
 | --with-NAME | run operation NAME whatever the level |
 | --no-NAME | skip operation NAME |
 | --force | keep results that score worse than the original |
@@ -92,7 +92,7 @@ wire, end, target and distance.
 
 Operations, by the lowest level that runs them:
 
-- safe: snap, flowlayout, seqlayout, classlayout, erlayout, separate, containers, reroute, labels
+- safe: snap, flowlayout, seqlayout, classlayout, erlayout, usecaselayout, separate, containers, reroute, labels
 - normal: align, resize, samesize, spacing, compact, grid
 - aggressive: normalize, relayout
 
@@ -251,6 +251,30 @@ Tables keep their size and the diagram keeps its top-left corner. Tables inside
 a container, wires with a free end or ending on a text fall back to the general
 operations, as does a result that scores worse.
 
+### usecaselayout (all levels)
+
+A diagram detected (or forced) as a use case diagram is laid out from
+scratch:
+
+- the use cases in one column inside the system boundary, all as wide as the
+  widest, so their leftmost and rightmost points line up;
+- each actor in a column on the side of the boundary (or, without one, of the
+  use cases) it was drawn on, level with the use cases it is associated with;
+- the order of use cases and actors chosen to reduce crossings (sweeps over
+  the average height of what each is joined to);
+- an association meets its use case at the middle of the side facing the
+  actor, so it stays clear of the other use cases;
+- two use cases joined by a labeled include or extend get room for the label
+  between them; an include or extend between use cases that are not neighbors
+  runs beside the column on the right, on a track of its own;
+- the boundary is redrawn around the column, with room for its title; notes
+  move with the nearest shape.
+
+The diagram keeps its top-left corner. A container, a shape that is neither
+an actor, a use case, a note nor a text, a second boundary, or a wire with a
+free end falls back to the general operations, as does a result that scores
+worse.
+
 ### Diagrams and decoration
 
 Each page is split into diagrams: groups of shapes joined by wires or by sitting
@@ -261,7 +285,10 @@ top (within 40px) even when its head was dragged off it. A free text or a note (
 shape, or of a container holding one (such as a lifeline with activation bars),
 joins its diagram. A free end within 6px of a UML lifeline's center line
 joins that lifeline. A frame joins the diagram whose wires it encloses, or
-whose lifelines it is drawn across. Everything else (lone shapes, titles, legends, wires attached to
+whose lifelines it is drawn across. An unfilled rectangle with its title at the top
+that encloses other shapes without holding them as children (the system
+boundary of a use case diagram) is a frame too: it joins the diagram of every
+wire it crosses, and never counts as a shape wires run through. Everything else (lone shapes, titles, legends, wires attached to
 nothing) is decoration and is never changed. Each diagram is reported with an
 identifier such as Page-1 #2 "Login": page, index in reading order, and the top
 container's title or the first shape's text.
@@ -400,7 +427,7 @@ Each setting is a flag taking a number in its range.
 
 ## Detected kinds
 
-Each diagram is scored as flowchart, swimlane, sequence, class, state and er by rules, never by
+Each diagram is scored as flowchart, swimlane, sequence, class, state, er and usecase by rules, never by
 learning, so the report can say why (--verbose lists the signals):
 
 - flowchart: three or more shapes, mostly one-way arrows going the same
@@ -419,6 +446,9 @@ learning, so the report can say why (--verbose lists the signals):
 - state: three or more shapes with the editor's initial or final state dots
   (shape=startState, shape=endState), mostly one-way transitions, no lanes,
   lifelines or containers, no shapes of other notations;
+- usecase: one or more actors (shape=umlActor) and use cases (ellipses with
+  text and no solid fill) with associations between them, most shapes being
+  actors or use cases and most wires joining them;
 - er: two or more of the editor's ER tables (shape=table, or the stacked
   shape the ER library shares with UML classes when ER relation ends outnumber
   UML ones), most shapes being tables, with ER relation ends on the wires.
@@ -435,7 +465,7 @@ small to judge (fewer than three shapes or two directed wires) are unknown.
 
 Flowcharts, swimlanes and state machines are laid out from scratch (see flowlayout below),
 class diagrams by classlayout, ER diagrams by erlayout, sequence diagrams by
-seqlayout; unknown diagrams get the general operations. --type overrides the
+seqlayout, use case diagrams by usecaselayout; unknown diagrams get the general operations. --type overrides the
 detected kind, so --type flowchart or --type swimlane forces a relayout attempt
 and --type unknown prevents one.
 

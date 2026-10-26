@@ -164,7 +164,6 @@ func Split(v *view.View) Page {
 		for _, w := range v.Wires {
 			if crossesBox(w.Path, n.Box) {
 				uf.join(idx[n], widx[w])
-				break
 			}
 		}
 		for _, l := range v.Nodes {

@@ -142,6 +142,13 @@ func Build(p *doc.Page) *View {
 			}
 		}
 	}
+	// A boundary drawn around other shapes, such as the system of a use case
+	// diagram, is a frame over them like a sequence diagram's.
+	for _, n := range v.Nodes {
+		if !n.Overlay && !n.Container && isBoundary(n, v.Nodes) {
+			n.Overlay = true
+		}
+	}
 	// Parents: the nearest container cell up the chain, seeing through groups.
 	for _, n := range v.Nodes {
 		cur := p.Cell(n.Cells[0].Parent())
@@ -199,6 +206,23 @@ func IsDrawnFrame(st doc.Style, text string) bool {
 	}
 	f := strings.FieldsFunc(text, func(r rune) bool { return r == ' ' || r == '\n' || r == '[' || r == '(' || r == ':' })
 	return len(f) > 0 && frameOperators[strings.ToLower(f[0])]
+}
+
+// isBoundary reports an unfilled rectangle with its title at the top that
+// encloses other shapes without holding them as children: the system
+// boundary of a use case diagram, or a region drawn around shapes.
+func isBoundary(n *Node, nodes []*Node) bool {
+	st := n.Style
+	if n.TextOnly || st.Shape() != "rectangle" || st.Value("fillColor", "") != "none" || st.Value("verticalAlign", "middle") != "top" {
+		return false
+	}
+	inside := 0
+	for _, m := range nodes {
+		if m != n && !m.TextOnly && n.Box.ContainsRect(m.Box) {
+			inside++
+		}
+	}
+	return inside > 0
 }
 
 func isGroup(c *doc.Cell) bool {

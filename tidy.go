@@ -18,6 +18,7 @@ import (
 	"github.com/luytbq/diakempt/snap"
 	"github.com/luytbq/diakempt/text"
 	"github.com/luytbq/diakempt/tidy"
+	"github.com/luytbq/diakempt/usecase"
 	"github.com/luytbq/diakempt/view"
 )
 
@@ -205,6 +206,7 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 		{detect.Class, "classlayout", "a class diagram", classes.Layout},
 		{detect.Sequence, "seqlayout", "a sequence diagram", sequence.Layout},
 		{detect.ER, "erlayout", "an ER diagram", classes.LayoutER},
+		{detect.UseCase, "usecaselayout", "a use case diagram", usecase.Layout},
 	} {
 		if dr.Kind != k.kind || !opt.enabled(k.op, lv) {
 			continue
