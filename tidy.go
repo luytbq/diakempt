@@ -211,6 +211,7 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 		{detect.UseCase, "usecaselayout", "a use case diagram", usecase.Layout},
 		{detect.Comm, "commlayout", "a communication diagram", communication.Layout},
 		{detect.Package, "pkglayout", "a package diagram", packages.Layout},
+		{detect.Deploy, "deploylayout", "a deployment diagram", communication.LayoutDeployment},
 	} {
 		if dr.Kind != k.kind || !opt.enabled(k.op, lv) {
 			continue

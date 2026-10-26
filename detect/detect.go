@@ -32,6 +32,7 @@ const (
 	UseCase   = "usecase"
 	Comm      = "communication"
 	Package   = "package"
+	Deploy    = "deployment"
 	Unknown   = "unknown"
 )
 
@@ -67,8 +68,9 @@ func Detect(d *segment.Diagram) Result {
 		UseCase:   f.useCaseScore(),
 		Comm:      f.commScore(),
 		Package:   f.packageScore(),
+		Deploy:    f.deployScore(),
 	}
-	kinds := []string{Flowchart, Swimlane, Sequence, Class, State, ER, UseCase, Comm, Package}
+	kinds := []string{Flowchart, Swimlane, Sequence, Class, State, ER, UseCase, Comm, Package, Deploy}
 	sort.SliceStable(kinds, func(i, j int) bool { return scores[kinds[i]] > scores[kinds[j]] })
 	best, second := kinds[0], scores[kinds[1]]
 	r := Result{Best: best, Scores: scores, Signals: f.signals}
@@ -110,6 +112,8 @@ type features struct {
 	// folders are package shapes; nested ones hold other shapes.
 	folders, nestedFolders int
 	containers             int
+	deployNodes            int // nodes, devices, execution environments and artifacts
+	plainWires             int // wires without arrowheads, wherever they end
 	// depWires are dashed or carry UML or ER ends, as dependencies and
 	// relations between packages do.
 	depWires      int
@@ -153,6 +157,9 @@ func measure(d *segment.Diagram) *features {
 		if n.Container {
 			f.containers++
 		}
+		if isDeploymentNode(n) {
+			f.deployNodes++
+		}
 		if IsClass(n) {
 			f.classes++
 		} else if isClassifierBox(n) {
@@ -190,6 +197,9 @@ func measure(d *segment.Diagram) *features {
 	for _, w := range d.Wires {
 		if w.Style.Value("dashed", "0") == "1" || foreignWire(w) != "" {
 			f.depWires++
+		}
+		if w.Style.Value("endArrow", "classic") == "none" && w.Style.Value("startArrow", "none") == "none" {
+			f.plainWires++
 		}
 		if why := foreignWire(w); why != "" {
 			f.foreign = append(f.foreign, why)
@@ -393,6 +403,37 @@ func (f *features) classScore() float64 {
 		s *= 0.5
 	}
 	return s
+}
+
+// deployScore scores a deployment diagram: nodes, devices, execution
+// environments and artifacts, joined by communication paths.
+func (f *features) deployScore() float64 {
+	shapes := f.leaves + f.containers
+	if f.deployNodes < 2 || f.wires == 0 || shapes == 0 {
+		return 0
+	}
+	share := float64(f.deployNodes) / float64(shapes)
+	paths := float64(f.plainWires+f.depWires) / float64(f.wires)
+	if paths > 1 {
+		paths = 1
+	}
+	s := 0.7*share + 0.3*paths
+	if f.lifelines > 0 || f.handLifelines > 0 || f.lanes > 0 || f.classes > 0 || f.tables > 0 {
+		s *= 0.5
+	}
+	return s
+}
+
+// deploymentStereotypes name what a deployment diagram's boxes stand for.
+var deploymentStereotypes = map[string]bool{
+	"device": true, "execution environment": true, "executionenvironment": true, "node": true,
+	"artifact": true, "external system": true, "server": true, "database": true, "os": true,
+}
+
+// isDeploymentNode reports the editor's node shape (a cube) or a box with a
+// deployment stereotype.
+func isDeploymentNode(n *view.Node) bool {
+	return n.Shape == "cube" || (!n.TextOnly && deploymentStereotypes[Stereotype(n.Text)])
 }
 
 // packageScore scores a package diagram: packages (folders) holding other

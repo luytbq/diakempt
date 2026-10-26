@@ -29,6 +29,7 @@ func main() {
 		"usecase":       {useCases("library", false), useCases("library-scattered", true)},
 		"communication": {communication("borrow", false), communication("borrow-scattered", true)},
 		"package":       {packageLayers()},
+		"deployment":    {deployment()},
 		"handflow":      {handflow("basic", 12, false), handflow("library", 12, true), handflow("big-font", 16, false)},
 	} {
 		dir := filepath.Join(*out, kind)
@@ -803,6 +804,34 @@ func packageLayers() func() *page {
 		p.edge("1", "", dep, billing, iface)
 		p.edge("1", "", dep, orders, store)
 		p.edge("1", "", "endArrow=block;endFill=0;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;", sub, iface)
+		return p
+	}
+}
+
+// deployment draws a deployment diagram: a server hub joined to devices,
+// some holding artifacts, and external systems by labeled communication
+// paths, scattered.
+func deployment() func() *page {
+	return func() *page {
+		p := &page{slug: "shop", title: "Deployment"}
+		node := "shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;verticalAlign=top;size=12;"
+		artifact := "rounded=0;whiteSpace=wrap;html=1;"
+		server := p.vertex("1", "«execution environment»<br>App server", node, 420, 300, 260, 160)
+		p.vertex(server, "«artifact»<br>ShopServer", artifact, 40, 60, 180, 50)
+		phone := p.vertex("1", "«device»<br>Phone", node, 40, 40, 240, 140)
+		p.vertex(phone, "«artifact»<br>ShopApp", artifact, 30, 60, 180, 50)
+		db := p.vertex("1", "«device»<br>Database server", node, 760, 520, 240, 120)
+		bank := p.vertex("1", "«external system»<br>Bank", node, 60, 520, 240, 120)
+		mail := p.vertex("1", "«external system»<br>Mail service", node, 820, 60, 240, 120)
+		queue := p.vertex("1", "«execution environment»<br>Queue", node, 420, 620, 240, 120)
+		worker := p.vertex("1", "«device»<br>Worker", node, 760, 760, 240, 120)
+		path := "endArrow=none;html=1;fontSize=10;"
+		p.edge("1", "HTTPS", path, phone, server)
+		p.edge("1", "internal network", path, server, db)
+		p.edge("1", "HTTPS, bank API", path, server, bank)
+		p.edge("1", "SMTP", path, server, mail)
+		p.edge("1", "AMQP", path, server, queue)
+		p.edge("1", "AMQP", path, queue, worker)
 		return p
 	}
 }

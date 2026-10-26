@@ -1,0 +1,55 @@
+<mxfile host="Electron" version="24.7.17">
+  <diagram id="shop" name="Deployment">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c1" value="«execution environment»&lt;br&gt;App server" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;verticalAlign=top;size=12;" vertex="1" parent="1">
+          <mxGeometry x="420" y="300" width="260" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="«artifact»&lt;br&gt;ShopServer" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="c1">
+          <mxGeometry x="40" y="60" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="«device»&lt;br&gt;Phone" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;verticalAlign=top;size=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="240" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="«artifact»&lt;br&gt;ShopApp" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="c3">
+          <mxGeometry x="30" y="60" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="«device»&lt;br&gt;Database server" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;verticalAlign=top;size=12;" vertex="1" parent="1">
+          <mxGeometry x="760" y="520" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="«external system»&lt;br&gt;Bank" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;verticalAlign=top;size=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="520" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value="«external system»&lt;br&gt;Mail service" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;verticalAlign=top;size=12;" vertex="1" parent="1">
+          <mxGeometry x="820" y="60" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" value="«execution environment»&lt;br&gt;Queue" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;verticalAlign=top;size=12;" vertex="1" parent="1">
+          <mxGeometry x="420" y="620" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" value="«device»&lt;br&gt;Worker" style="shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;verticalAlign=top;size=12;" vertex="1" parent="1">
+          <mxGeometry x="760" y="760" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" value="HTTPS" style="endArrow=none;html=1;fontSize=10;" edge="1" parent="1" source="c3" target="c1">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c11" value="internal network" style="endArrow=none;html=1;fontSize=10;" edge="1" parent="1" source="c1" target="c5">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c12" value="HTTPS, bank API" style="endArrow=none;html=1;fontSize=10;" edge="1" parent="1" source="c1" target="c6">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c13" value="SMTP" style="endArrow=none;html=1;fontSize=10;" edge="1" parent="1" source="c1" target="c7">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c14" value="AMQP" style="endArrow=none;html=1;fontSize=10;" edge="1" parent="1" source="c1" target="c8">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="c15" value="AMQP" style="endArrow=none;html=1;fontSize=10;" edge="1" parent="1" source="c8" target="c9">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

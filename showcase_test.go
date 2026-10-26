@@ -61,6 +61,7 @@ var examples = []example{
 	{"31-class-analysis", "corpus/clean/class/05-analysis-row.drawio", 0, 0, 0, Normal},
 	{"32-communication-scattered", "corpus/clean/communication/02-borrow-scattered.drawio", 0, 0, 0, Normal},
 	{"33-package-layers", "corpus/clean/package/01-layers.drawio", 0, 0, 0, Normal},
+	{"34-deployment", "corpus/clean/deployment/01-shop.drawio", 0, 0, 0, Normal},
 }
 
 // TestShowcase writes showcase/NAME.before.drawio and NAME.after.drawio for

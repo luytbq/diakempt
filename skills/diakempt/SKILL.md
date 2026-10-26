@@ -77,6 +77,8 @@ What the report says, and what to do:
 - "commlayout not possible": the communication diagram holds a container, or
   a link with a free end or ending on a text; the general tidy still ran.
   Attaching the link in draw.io lets the layout run next time.
+- "deploylayout not possible": a link has a free end or ends on a text; the
+  general tidy still ran. Attaching the link lets the layout run next time.
 - "pkglayout not possible": the package diagram has a shape inside a container
   that is not part of it, or a dependency with a free end or ending on a
   text; the general tidy still ran.

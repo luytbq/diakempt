@@ -147,6 +147,7 @@ Catalogue today (v1.3):
 | use case | yes | yes, usecaselayout |
 | communication | yes | yes, commlayout |
 | package | yes | yes, pkglayout |
+| deployment | yes | yes, deploylayout |
 | anything else | unknown | general tidy-up |
 
 Component, BPMN, mind map and network diagrams are not detected yet; they are
