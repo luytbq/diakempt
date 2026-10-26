@@ -332,8 +332,13 @@ scratch:
 - two use cases joined by a labeled include or extend get room for the label
   between them; an include or extend between use cases that are not neighbors
   runs beside the column on the right, on a track of its own;
-- the boundary is redrawn around the column, with room for its title; notes
-  move with the nearest shape.
+- includes and extends are weighted more than associations when ordering, so
+  the use cases they join come near each other;
+- the boundary is redrawn around the column and the tracks beside it, with
+  room for its title;
+- notes stand in a column right of the boundary, before the actors on that
+  side, each level with the shape it stood nearest; a note's line to a wire
+  follows the wire.
 
 The diagram keeps its top-left corner. A container, a shape that is neither
 an actor, a use case, a note nor a text, a second boundary, or a wire with a
@@ -349,7 +354,8 @@ sequence diagram, and a hand-drawn lifeline joins the shape just above its
 top (within 40px) even when its head was dragged off it. A free text or a note (shape=note) within 40px of a wired
 shape, or of a container holding one (such as a lifeline with activation bars),
 joins its diagram. A free end within 6px of a UML lifeline's center line
-joins that lifeline. A frame joins the diagram whose wires it encloses, or
+joins that lifeline, and a wire ending on another wire (a note's line to the
+arrow it explains) joins that wire. A frame joins the diagram whose wires it encloses, or
 whose lifelines it is drawn across. An unfilled rectangle with its title at the top
 that encloses other shapes without holding them as children (the system
 boundary of a use case diagram) is a frame too: it joins the diagram of every

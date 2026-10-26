@@ -18,15 +18,17 @@ import (
 
 // Spacing, in pixels.
 const (
-	caseGap   = 24 // between two use cases
-	actorGap  = 30 // between two actors, labels included
-	sideGap   = 90 // between an actor's column and the boundary
-	padX      = 50 // inside the boundary, beside the use cases
-	padTop    = 50 // inside the boundary, above the first use case, for its title
-	padBottom = 30
-	bypass    = 20 // from the column to the first include or extend running beside it
-	bypassGap = 12 // between two of them
-	sweeps    = 8
+	caseGap     = 24 // between two use cases
+	actorGap    = 30 // between two actors, labels included
+	sideGap     = 90 // between an actor's column and the boundary
+	padX        = 50 // inside the boundary, beside the use cases
+	padTop      = 50 // inside the boundary, above the first use case, for its title
+	padBottom   = 30
+	bypass      = 20 // from the column to the first include or extend running beside it
+	bypassGap   = 12 // between two of them
+	partnerPull = 3  // weight of an include or extend when ordering use cases
+	noteGap     = 30 // between the boundary and a note beside it
+	sweeps      = 8
 )
 
 // Unsupported explains why a diagram cannot be laid out as a use case diagram.
@@ -77,7 +79,13 @@ func Layout(d *tidy.Diagram) error {
 	for _, a := range actors {
 		of[a.n] = a
 	}
+	// A line from a note to the wire it explains follows on its own.
+	var wires []*tidy.Wire
 	for _, w := range d.Wires {
+		if onWire(w) {
+			continue
+		}
+		wires = append(wires, w)
 		if w.Src == nil || w.Dst == nil {
 			return &Unsupported{fmt.Sprintf("wire %s has a free end", w.V.Cell.ID)}
 		}
@@ -105,7 +113,7 @@ func Layout(d *tidy.Diagram) error {
 		a.width = math.Max(a.n.Box.W, lw)
 	}
 	links := map[*tidy.Node][]*tidy.Node{}
-	for _, w := range d.Wires {
+	for _, w := range wires {
 		if w.Src != w.Dst {
 			links[w.Src] = append(links[w.Src], w.Dst)
 			links[w.Dst] = append(links[w.Dst], w.Src)
@@ -134,7 +142,7 @@ func Layout(d *tidy.Diagram) error {
 	// Two use cases joined by a labeled include or extend need room between
 	// them for the label.
 	labelRoom := map[[2]*tidy.Node]float64{}
-	for _, w := range d.Wires {
+	for _, w := range wires {
 		if isCase[w.Src] && isCase[w.Dst] {
 			for _, l := range w.LabelSpans() {
 				k := [2]*tidy.Node{w.Src, w.Dst}
@@ -189,9 +197,15 @@ func Layout(d *tidy.Diagram) error {
 		key := map[*tidy.Node]float64{}
 		for _, c := range cases {
 			sum, cnt := 0.0, 0
+			// An include or extend pulls harder than an association, so
+			// the use cases it joins end up near each other.
 			for _, o := range links[c] {
-				sum += center(o)
-				cnt++
+				k := 1
+				if isCase[o] {
+					k = partnerPull
+				}
+				sum += float64(k) * center(o)
+				cnt += k
 			}
 			if cnt > 0 {
 				key[c] = sum / float64(cnt)
@@ -231,6 +245,16 @@ func Layout(d *tidy.Diagram) error {
 		inner += 2 * padX
 	}
 	colX := x + inner/2
+	// Includes and extends running beside the column stay in the boundary.
+	if long, half := detours(wires, cases, isCase); len(long) > 0 {
+		inner += bypass + half + float64(len(long)-1)*bypassGap
+	}
+	// Notes stand in a column right of the boundary, before the actors on
+	// that side.
+	notesW := 0.0
+	for _, n := range others {
+		notesW = math.Max(notesW, n.Box.W+noteGap)
+	}
 	moved := map[*tidy.Node]geom.Point{}
 	put := func(n *tidy.Node, c geom.Point) {
 		moved[n] = geom.Point{X: c.X - n.Box.Center().X, Y: c.Y - n.Box.Center().Y}
@@ -244,13 +268,16 @@ func Layout(d *tidy.Diagram) error {
 	for _, a := range actors {
 		ax := leftW / 2
 		if a.right {
-			ax = x + inner + sideGap + rightW/2
+			ax = x + inner + notesW + sideGap + rightW/2
 		}
 		put(a.n, geom.Point{X: ax, Y: a.y})
 	}
 	if boundary != nil {
 		boundary.Box = geom.Rect{X: x, Y: 0, W: inner, H: bottom + padBottom}
 	}
+	// Each note level with the shape it stood nearest, below the note
+	// above it.
+	want := map[*tidy.Node]float64{}
 	for _, n := range others {
 		var best *tidy.Node
 		bd := math.Inf(1)
@@ -259,9 +286,17 @@ func Layout(d *tidy.Diagram) error {
 				best, bd = m, dd
 			}
 		}
+		want[n] = n.Box.Y
 		if best != nil {
-			n.Box = n.Box.Move(moved[best])
+			want[n] = n.Box.Y + moved[best].Y
 		}
+	}
+	sort.SliceStable(others, func(i, j int) bool { return want[others[i]] < want[others[j]] })
+	below := math.Inf(-1)
+	for _, n := range others {
+		y := math.Max(want[n], below)
+		n.Box = geom.Rect{X: x + inner + noteGap, Y: y, W: n.Box.W, H: n.Box.H}
+		below = y + n.Box.H + caseGap
 	}
 	// Keep the diagram's top-left corner.
 	now := geom.Point{X: math.Inf(1), Y: math.Inf(1)}
@@ -272,7 +307,7 @@ func Layout(d *tidy.Diagram) error {
 	for _, n := range d.Nodes {
 		n.Box = n.Box.Move(by)
 	}
-	route(d, cases, isCase, of)
+	route(wires, cases, isCase, of)
 	return nil
 }
 
@@ -309,15 +344,12 @@ func spread(side []*actor) {
 // middle of the side facing the actor. An include or extend between use cases
 // that are not neighbors in the column runs beside the column, on the right,
 // each on a track of its own.
-func route(d *tidy.Diagram, cases []*tidy.Node, isCase map[*tidy.Node]bool, of map[*tidy.Node]*actor) {
-	index := map[*tidy.Node]int{}
+func route(wires []*tidy.Wire, cases []*tidy.Node, isCase map[*tidy.Node]bool, of map[*tidy.Node]*actor) {
 	right := math.Inf(-1)
-	for i, c := range cases {
-		index[c] = i
+	for _, c := range cases {
 		right = math.Max(right, c.Box.Right())
 	}
-	var long []*tidy.Wire
-	for _, w := range d.Wires {
+	for _, w := range wires {
 		w.Points = nil
 		for _, k := range []string{"exitX", "exitY", "exitDx", "exitDy", "exitPerimeter", "entryX", "entryY", "entryDx", "entryDy", "entryPerimeter"} {
 			w.Style.Del(k)
@@ -338,13 +370,24 @@ func route(d *tidy.Diagram, cases []*tidy.Node, isCase map[*tidy.Node]bool, of m
 				w.Style.Set(e.prefix+"Dy", "0")
 			}
 		}
-		if isCase[w.Src] && isCase[w.Dst] {
-			if k := index[w.Src] - index[w.Dst]; k > 1 || k < -1 {
-				long = append(long, w)
-			}
-		}
 	}
-	// Shorter detours run nearer the column, so they do not cross longer ones.
+	long, half := detours(wires, cases, isCase)
+	for i, w := range long {
+		x := right + bypass + half + float64(i)*bypassGap
+		w.Points = []geom.Point{{X: x, Y: w.Src.Box.Center().Y}, {X: x, Y: w.Dst.Box.Center().Y}}
+	}
+}
+
+// detours lists the includes and extends between use cases that are not
+// neighbors in the column, shorter ones first, so they run nearer the column
+// and do not cross longer ones. half is half the widest label among them: a
+// label sits centered on its track, so the tracks keep that clear of the
+// column.
+func detours(wires []*tidy.Wire, cases []*tidy.Node, isCase map[*tidy.Node]bool) (long []*tidy.Wire, half float64) {
+	index := map[*tidy.Node]int{}
+	for i, c := range cases {
+		index[c] = i
+	}
 	span := func(w *tidy.Wire) int {
 		k := index[w.Src] - index[w.Dst]
 		if k < 0 {
@@ -352,19 +395,27 @@ func route(d *tidy.Diagram, cases []*tidy.Node, isCase map[*tidy.Node]bool, of m
 		}
 		return k
 	}
-	sort.SliceStable(long, func(i, j int) bool { return span(long[i]) < span(long[j]) })
-	// A label sits centered on its track, so the tracks keep half the widest
-	// label clear of the column.
-	half := 0.0
-	for _, w := range long {
-		for _, l := range w.LabelSpans() {
-			half = math.Max(half, l.W/2)
+	for _, w := range wires {
+		if isCase[w.Src] && isCase[w.Dst] && span(w) > 1 {
+			long = append(long, w)
+			for _, l := range w.LabelSpans() {
+				half = math.Max(half, l.W/2)
+			}
 		}
 	}
-	for i, w := range long {
-		x := right + bypass + half + float64(i)*bypassGap
-		w.Points = []geom.Point{{X: x, Y: w.Src.Box.Center().Y}, {X: x, Y: w.Dst.Box.Center().Y}}
+	sort.SliceStable(long, func(i, j int) bool { return span(long[i]) < span(long[j]) })
+	return long, half
+}
+
+// onWire reports a wire with an end on another wire, such as a note's line
+// to the arrow it explains.
+func onWire(w *tidy.Wire) bool {
+	for _, ref := range []string{w.V.SrcRef, w.V.DstRef} {
+		if c := w.V.Cell.Page.Cell(ref); ref != "" && c != nil && c.IsEdge() {
+			return true
+		}
 	}
+	return false
 }
 
 // gap returns the distance between two boxes, zero when they touch or overlap.

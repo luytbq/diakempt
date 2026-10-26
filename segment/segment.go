@@ -93,6 +93,19 @@ func Split(v *view.View) Page {
 			}
 		}
 	}
+	// A wire ending on another wire, such as a note's line to the arrow it
+	// explains, belongs with that wire.
+	byCell := map[string]*view.Wire{}
+	for _, w := range v.Wires {
+		byCell[w.Cell.ID] = w
+	}
+	for _, w := range v.Wires {
+		for _, ref := range []string{w.SrcRef, w.DstRef} {
+			if o := byCell[ref]; o != nil && o != w {
+				uf.join(widx[w], widx[o])
+			}
+		}
+	}
 	// Free wire ends touching another wire or a shape, as in hand-drawn
 	// sequence diagrams where arrows run between dashed lines.
 	for _, w := range v.Wires {
