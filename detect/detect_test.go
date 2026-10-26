@@ -191,3 +191,25 @@ func TestERTablesDrawnAsStacks(t *testing.T) {
 		t.Fatalf("got %+v, want one ER diagram", rs)
 	}
 }
+
+// TestScreenFlowInALane: screens navigating back and forth after a start, in
+// one lane, are a swimlane flow though the flow has no end.
+func TestScreenFlowInALane(t *testing.T) {
+	d, _, err := doc.Parse([]byte(`<mxGraphModel><root>
+  <mxCell id="0" /><mxCell id="1" parent="0" />
+  <mxCell id="l" value="Rider app" style="swimlane;startSize=30;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="760" height="200" as="geometry" /></mxCell>
+  <mxCell id="s" style="ellipse;fillColor=#000000;" vertex="1" parent="l"><mxGeometry x="40" y="85" width="30" height="30" as="geometry" /></mxCell>
+  <mxCell id="a" value="Home" style="rounded=0;" vertex="1" parent="l"><mxGeometry x="240" y="70" width="160" height="60" as="geometry" /></mxCell>
+  <mxCell id="b" value="Scan code" style="rounded=0;" vertex="1" parent="l"><mxGeometry x="560" y="70" width="160" height="60" as="geometry" /></mxCell>
+  <mxCell id="t1" value="open app" style="endArrow=open;dashed=1;" edge="1" parent="1" source="s" target="a"><mxGeometry relative="1" as="geometry" /></mxCell>
+  <mxCell id="t2" value="tap Rent" style="endArrow=open;dashed=1;exitY=0.3;entryY=0.3;" edge="1" parent="1" source="a" target="b"><mxGeometry relative="1" as="geometry" /></mxCell>
+  <mxCell id="t3" value="tap Back" style="endArrow=open;dashed=1;exitY=0.7;entryY=0.7;" edge="1" parent="1" source="b" target="a"><mxGeometry relative="1" as="geometry" /></mxCell>
+</root></mxGraphModel>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rs := kinds(t, d)
+	if len(rs) != 1 || rs[0].Kind != Swimlane {
+		t.Fatalf("got %+v, want one swimlane diagram", rs)
+	}
+}

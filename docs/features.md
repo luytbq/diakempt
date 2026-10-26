@@ -459,8 +459,9 @@ Each diagram is scored as flowchart, swimlane, sequence, class, state, er, useca
 learning, so the report can say why (--verbose lists the signals):
 
 - flowchart: three or more shapes, mostly one-way arrows going the same
-  direction, decision diamonds or start and end shapes, a clear start and end,
-  no lanes;
+  direction, decision diamonds or start and end shapes, a clear start and end
+  (a start alone counts half: screens navigating back and forth have no
+  end), no lanes;
 - swimlane: the same, inside swimlane containers (a pool with lanes, or
   swimlanes side by side as bands); in lanes, the state machine's initial and
   final state shapes count as the activity's start and end shapes, not as

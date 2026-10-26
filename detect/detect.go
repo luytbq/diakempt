@@ -320,9 +320,14 @@ func (f *features) flowScore(withLanes bool) float64 {
 	if f.decisions > 0 || f.terminals > 0 || f.flowLibrary > 0 {
 		shapes = 1
 	}
+	// A flow that only cycles after its start, as screens navigating back
+	// and forth do, has a start but no end.
 	ends := 0.0
-	if f.sources > 0 && f.sinks > 0 {
+	switch {
+	case f.sources > 0 && f.sinks > 0:
 		ends = 1
+	case f.sources > 0:
+		ends = 0.5
 	}
 	s := 0.35*directedShare + 0.35*f.forwardShare + 0.15*shapes + 0.15*ends
 	if len(f.foreign) > 0 || f.lifelines > 0 || f.handLifelines > 0 {
