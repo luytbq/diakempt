@@ -206,6 +206,12 @@ func measure(d *segment.Diagram) *features {
 			f.sinks++
 		}
 	}
+	// The editor's ER library draws a table with the same stacked shape as a
+	// UML class. Joined mostly by ER relations, they are tables.
+	if f.classes > 0 && f.erWires > f.umlWires {
+		f.tables += f.classes
+		f.classes = 0
+	}
 	f.lanes, f.nonLaneGroups = lanes(d)
 	// In lanes, the state machine dots are an activity diagram's initial and
 	// final nodes, drawn with the same shapes.

@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -160,5 +161,31 @@ func TestActivityWithFinalStateShapes(t *testing.T) {
 	rs := kinds(t, d)
 	if len(rs) != 1 || rs[0].Kind != Swimlane {
 		t.Fatalf("got %+v, want one swimlane diagram", rs)
+	}
+}
+
+// TestERTablesDrawnAsStacks: tables drawn with the stacked shape the editor's
+// ER library shares with UML classes, joined by ER relations, are an ER
+// diagram.
+func TestERTablesDrawnAsStacks(t *testing.T) {
+	table := func(id string, x float64) string {
+		return `<mxCell id="` + id + `" value="` + id + `" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;" vertex="1" parent="1"><mxGeometry x="` +
+			strconv.FormatFloat(x, 'f', 0, 64) + `" y="0" width="160" height="86" as="geometry" /></mxCell>
+  <mxCell id="` + id + `-id" value="id" style="text;" vertex="1" parent="` + id + `"><mxGeometry y="26" width="160" height="30" as="geometry" /></mxCell>
+  <mxCell id="` + id + `-name" value="name" style="text;" vertex="1" parent="` + id + `"><mxGeometry y="56" width="160" height="30" as="geometry" /></mxCell>
+`
+	}
+	d, _, err := doc.Parse([]byte(`<mxGraphModel><root>
+  <mxCell id="0" /><mxCell id="1" parent="0" />
+  ` + table("station", 0) + table("dock", 240) + table("bike", 480) + `
+  <mxCell id="r1" style="startArrow=ERmandOne;endArrow=ERzeroToMany;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="station" target="dock"><mxGeometry relative="1" as="geometry" /></mxCell>
+  <mxCell id="r2" style="startArrow=ERzeroToOne;endArrow=ERzeroToOne;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="dock" target="bike"><mxGeometry relative="1" as="geometry" /></mxCell>
+</root></mxGraphModel>`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rs := kinds(t, d)
+	if len(rs) != 1 || rs[0].Kind != ER {
+		t.Fatalf("got %+v, want one ER diagram", rs)
 	}
 }

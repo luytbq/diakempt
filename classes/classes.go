@@ -58,7 +58,9 @@ func Layout(d *tidy.Diagram) error {
 	layers := order(nodes, links, rank)
 	place(layers, links, rank, gaps(layers, links, rank))
 	keepCorner(d, nodes)
-	route(d, layers, links, rank)
+	for _, l := range route(layers, links, rank) {
+		d.RouteWire(l.w)
+	}
 	return nil
 }
 
@@ -464,8 +466,8 @@ func place(layers [][]*tidy.Node, links []*link, rank map[*tidy.Node]int, gaps [
 }
 
 // keepCorner moves the laid-out classes so the diagram's top-left corner is
-// where it was.
-func keepCorner(d *tidy.Diagram, nodes []*tidy.Node) {
+// where it was, and returns how far it moved them.
+func keepCorner(d *tidy.Diagram, nodes []*tidy.Node) geom.Point {
 	var was, now geom.Rect
 	for _, n := range nodes {
 		was = was.Union(n.Orig)
@@ -481,6 +483,7 @@ func keepCorner(d *tidy.Diagram, nodes []*tidy.Node) {
 			n.Box = n.Box.Move(nearestShift(n, nodes))
 		}
 	}
+	return by
 }
 
 func nearestShift(t *tidy.Node, nodes []*tidy.Node) geom.Point {
@@ -547,9 +550,9 @@ func gaps(layers [][]*tidy.Node, links []*link, rank map[*tidy.Node]int) []float
 // Every other wire between adjacent ranks gets a level of its own, leaving
 // the upper class from its bottom and entering the lower one from its top.
 // Levels are ordered and ports spread along each side to avoid crossings.
-// Wires within a rank or across several are routed around the classes
-// afterwards, so they see the rest.
-func route(d *tidy.Diagram, layers [][]*tidy.Node, links []*link, rank map[*tidy.Node]int) {
+// It returns the wires within a rank or across several, for the caller to
+// route around the classes afterwards, so they see the rest.
+func route(layers [][]*tidy.Node, links []*link, rank map[*tidy.Node]int) []*link {
 	n := len(layers)
 	top, bottom := make([]float64, n), make([]float64, n)
 	for r, l := range layers {
@@ -577,6 +580,8 @@ func route(d *tidy.Diagram, layers [][]*tidy.Node, links []*link, rank map[*tidy
 	var rest []*link
 	for _, l := range links {
 		switch {
+		case l.w.OnPart():
+			rest = append(rest, l)
 		case trunk(l, rank):
 			r := byParent[l.up]
 			if r == nil {
@@ -701,9 +706,7 @@ func route(d *tidy.Diagram, layers [][]*tidy.Node, links []*link, rank map[*tidy
 			w.Routed = true
 		}
 	}
-	for _, l := range rest {
-		d.RouteWire(l.w)
-	}
+	return rest
 }
 
 func anchor(w *tidy.Wire, prefix string, fx, fy float64) {

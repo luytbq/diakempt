@@ -26,14 +26,37 @@ func LayoutER(d *tidy.Diagram) error {
 	transpose(nodes)
 	rank := ranks(nodes, links)
 	layers := order(nodes, links, rank)
-	place(layers, links, rank, nil)
-	transpose(nodes)
-	keepCorner(d, nodes)
+	// draw.io routes ER relations itself; the rest get the class diagram's
+	// channels, turned on their side with everything else.
+	var own []*link
 	for _, l := range links {
 		if view.IsEntityRelation(l.w.Style) {
 			l.w.Points = nil
-			continue
+		} else {
+			own = append(own, l)
 		}
+	}
+	place(layers, own, rank, gaps(layers, own, rank))
+	rest := route(layers, own, rank)
+	transpose(nodes)
+	inRest := map[*link]bool{}
+	for _, l := range rest {
+		inRest[l] = true
+	}
+	for _, l := range own {
+		if !inRest[l] {
+			transposeWire(l.w)
+		}
+	}
+	by := keepCorner(d, nodes)
+	for _, l := range own {
+		if !inRest[l] {
+			for i := range l.w.Points {
+				l.w.Points[i] = l.w.Points[i].Add(by)
+			}
+		}
+	}
+	for _, l := range rest {
 		d.RouteWire(l.w)
 	}
 	return nil
@@ -44,6 +67,23 @@ func transpose(nodes []*tidy.Node) {
 	flip := func(r geom.Rect) geom.Rect { return geom.Rect{X: r.Y, Y: r.X, W: r.H, H: r.W} }
 	for _, n := range nodes {
 		n.Box, n.Orig = flip(n.Box), flip(n.Orig)
+	}
+}
+
+// transposeWire swaps the axes of a wire's waypoints and ports.
+func transposeWire(w *tidy.Wire) {
+	for i, p := range w.Points {
+		w.Points[i] = geom.Point{X: p.Y, Y: p.X}
+	}
+	for _, end := range []string{"exit", "entry"} {
+		for _, k := range [][2]string{{"X", "Y"}, {"Dx", "Dy"}} {
+			a, aok := w.Style.Get(end + k[0])
+			b, bok := w.Style.Get(end + k[1])
+			if aok && bok {
+				w.Style.Set(end+k[0], b)
+				w.Style.Set(end+k[1], a)
+			}
+		}
 	}
 }
 

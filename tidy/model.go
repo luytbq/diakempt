@@ -223,6 +223,10 @@ func placePart(rel *geom.Rect, n *Node) *geom.Rect {
 }
 
 // LabelBoxes returns the boxes of the wire's labels on its current line.
+// OnPart reports whether either end names a part of its node, such as a
+// table row, rather than the node itself.
+func (w *Wire) OnPart() bool { return w.srcPart != nil || w.dstPart != nil }
+
 // LabelSpan is where a label sits along its wire and how big it is.
 type LabelSpan struct {
 	Pos  float64 // -1 at the source to 1 at the target

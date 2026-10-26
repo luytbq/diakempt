@@ -241,7 +241,11 @@ the class layout turned on its side:
 draw.io routes relations drawn with edgeStyle=entityRelationEdgeStyle by
 itself, out of the left or right side of the table at the row the relation is
 attached to, and ignores waypoints; those relations only lose stored
-waypoints. Other wires are routed around the tables.
+waypoints. Other relations between adjacent columns run through the gap
+between them as in classlayout, turned on its side: from the right side of
+the left table, on a level of their own, into the left side of the right
+table. Relations attached to a row, within a column or across several are
+routed around the tables.
 
 Tables keep their size and the diagram keeps its top-left corner. Tables inside
 a container, wires with a free end or ending on a text fall back to the general
@@ -415,8 +419,9 @@ learning, so the report can say why (--verbose lists the signals):
 - state: three or more shapes with the editor's initial or final state dots
   (shape=startState, shape=endState), mostly one-way transitions, no lanes,
   lifelines or containers, no shapes of other notations;
-- er: two or more of the editor's ER tables (shape=table), most shapes being
-  tables, with ER relation ends on the wires.
+- er: two or more of the editor's ER tables (shape=table, or the stacked
+  shape the ER library shares with UML classes when ER relation ends outnumber
+  UML ones), most shapes being tables, with ER relation ends on the wires.
 
 For the flow kinds, shapes or arrows of other notations (UML classes, ER tables and relations,
 state machine start and end states, network and cloud icons, mind map links,
