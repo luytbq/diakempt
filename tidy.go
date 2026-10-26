@@ -119,13 +119,15 @@ func (pr *pageReport) absorb(later *pageReport) {
 	pr.changed = pr.changed || later.changed
 	earlier := map[string]report.Diagram{}
 	for _, d := range pr.diagrams {
-		earlier[d.ID] = d
+		earlier[d.Members] = d
 	}
 	var out []report.Diagram
 	for _, d := range later.diagrams {
 		// A diagram that gained or lost members between passes is a different
-		// diagram; its own figures stand.
-		if e, ok := earlier[d.ID]; ok && e.Shapes == d.Shapes && e.Wires == d.Wires {
+		// diagram; its own figures stand. One that kept them keeps the name
+		// it was found under, even when moving shapes changed its first one.
+		if e, ok := earlier[d.Members]; ok {
+			d.ID, d.Index, d.Name = e.ID, e.Index, e.Name
 			d.Before = e.Before
 			d.Operations = addOps(e.Operations, d.Operations)
 			d.Details = append(e.Details, d.Details...)
@@ -185,7 +187,8 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 	det := detect.Detect(sd)
 	dr := report.Diagram{
 		ID: sd.ID(), Page: sd.Page, Index: sd.Index, Name: sd.Name, Shapes: len(sd.Nodes), Wires: len(sd.Wires),
-		Kind: det.Kind, Confidence: det.Confidence, Signals: det.Signals,
+		Members: members(sd),
+		Kind:    det.Kind, Confidence: det.Confidence, Signals: det.Signals,
 		Level: string(lv), Applied: "none",
 	}
 	if opt.Kind != "" {
@@ -367,6 +370,19 @@ func worse(after, before report.Metrics) bool {
 		return da > db
 	}
 	return after.Area > 1.1*before.Area+1 || after.WireLength > 1.1*before.WireLength+1
+}
+
+// members lists the cells of a diagram's nodes and wires.
+func members(sd *segment.Diagram) string {
+	var ids []string
+	for _, n := range sd.Nodes {
+		ids = append(ids, n.ID)
+	}
+	for _, w := range sd.Wires {
+		ids = append(ids, w.Cell.ID)
+	}
+	slices.Sort(ids)
+	return strings.Join(ids, "\x00")
 }
 
 // hasLanes reports whether a diagram's shapes sit in swimlanes.

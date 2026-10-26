@@ -26,7 +26,7 @@ func LayoutER(d *tidy.Diagram) error {
 	transpose(nodes)
 	rank := ranks(nodes, links)
 	layers := order(nodes, links, rank)
-	place(layers, links, rank)
+	place(layers, links, rank, nil)
 	transpose(nodes)
 	keepCorner(d, nodes)
 	for _, l := range links {

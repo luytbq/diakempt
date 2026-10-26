@@ -223,6 +223,21 @@ func placePart(rel *geom.Rect, n *Node) *geom.Rect {
 }
 
 // LabelBoxes returns the boxes of the wire's labels on its current line.
+// LabelSpan is where a label sits along its wire and how big it is.
+type LabelSpan struct {
+	Pos  float64 // -1 at the source to 1 at the target
+	W, H float64
+}
+
+// LabelSpans lists the wire's labels.
+func (w *Wire) LabelSpans() []LabelSpan {
+	out := make([]LabelSpan, len(w.labels))
+	for i, l := range w.labels {
+		out[i] = LabelSpan{Pos: l.pos, W: l.w, H: l.h}
+	}
+	return out
+}
+
 func (w *Wire) LabelBoxes() []geom.Rect {
 	if len(w.labels) == 0 {
 		return nil

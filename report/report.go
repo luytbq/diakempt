@@ -32,12 +32,15 @@ type Snap struct {
 // Diagram is the report for one diagram.
 type Diagram struct {
 	// ID is page, index on the page and a readable name: Page-1 #2 "Login".
-	ID         string   `json:"id"`
-	Page       int      `json:"page"`
-	Index      int      `json:"index"`
-	Name       string   `json:"name"`
-	Shapes     int      `json:"shapes"`
-	Wires      int      `json:"wires"`
+	ID     string `json:"id"`
+	Page   int    `json:"page"`
+	Index  int    `json:"index"`
+	Name   string `json:"name"`
+	Shapes int    `json:"shapes"`
+	Wires  int    `json:"wires"`
+	// Members identifies the cells of the diagram, to recognize it across
+	// passes when moving shapes changes its name.
+	Members    string   `json:"-"`
 	Kind       string   `json:"kind"`
 	Confidence string   `json:"confidence"`
 	Signals    []string `json:"signals,omitempty"`

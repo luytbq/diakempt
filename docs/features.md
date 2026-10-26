@@ -203,11 +203,22 @@ A diagram detected (or forced) as a class diagram is laid out from scratch:
   triangle) above its source, the diamond end of a composition or aggregation
   above the other end where that does not contradict a generalization; a class
   with neither sits in the rank of its median neighbor;
+- when no relation is a generalization, realization, composition or
+  aggregation: boundary classes on top, controls under them and entities at
+  the bottom, when every class carries one of those stereotypes («boundary»,
+  «control», «entity») and they are not all the same; otherwise the rows the
+  classes were drawn in;
 - within a rank, classes ordered to reduce crossings (sweeps over the average
   position of neighbors), each class centered under the classes it hangs from;
-- generalizations between adjacent ranks drawn as trunks: from the child's
-  top up to a level in the gap, across, and into the parent's bottom center,
-  shared by all children of one parent;
+  neighbors joined by a wire get room for its labels (role names and
+  multiplicities near the ends);
+- every wire between adjacent ranks runs through the gap between them:
+  generalizations as trunks, from each child's top up to a level shared by all
+  children of one parent, across, and into the parent's bottom; every other
+  wire on a level of its own, from the upper class's bottom to the lower
+  class's top; levels are ordered to avoid crossings, ports are spread along
+  each side in the order of the classes they lead to, and a gap grows to fit
+  its levels;
 - every other relation routed around the classes.
 
 Classes keep their size, since their rows set it, and the diagram keeps its

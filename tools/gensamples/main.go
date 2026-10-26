@@ -23,7 +23,7 @@ func main() {
 		"architecture": {arch(3, 2), arch(4, 3), arch(2, 4)},
 		"network":      {network(5), network(8)},
 		"mindmap":      {mindmap(5), mindmap(8)},
-		"class":        {class(3), class(5), classModel("bank", false), classModel("bank-scattered", true)},
+		"class":        {class(3), class(5), classModel("bank", false), classModel("bank-scattered", true), classAnalysis()},
 		"er":           {er(3), er(4), erModel("shop", false), erModel("shop-scattered", true)},
 		"state":        {state(4), state(6)},
 		"handflow":     {handflow("basic", 12, false), handflow("library", 12, true), handflow("big-font", 16, false)},
@@ -654,4 +654,26 @@ func seqDrawn(slug string, scattered bool) func() *page {
 func (p *page) label(id, value string) {
 	last := p.cells[len(p.cells)-1]
 	p.cells[len(p.cells)-1] = strings.Replace(last, `id="`+id+`" value=""`, `id="`+id+`" value="`+esc(value)+`"`, 1)
+}
+
+// classAnalysis draws an analysis class diagram (a view of participating
+// classes): boundary, control and entity classes joined only by plain
+// associations, laid out in one row as a generator might.
+func classAnalysis() func() *page {
+	return func() *page {
+		p := &page{slug: "analysis-row", title: "Rent a bike, analysis classes"}
+		names := []string{"«entity»\nTrip", "«boundary»\nRentForm", "«entity»\nDock", "«control»\nRentController", "«boundary»\nPaymentGateway", "«entity»\nBike"}
+		ids := make([]string, len(names))
+		for i, n := range names {
+			ids[i] = p.classBox(n, []string{"id"}, []string{"// handle"}, 40+float64(i)*240, 40)
+		}
+		assoc := "endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;"
+		for _, pair := range [][2]int{{1, 3}, {4, 3}, {3, 0}, {3, 2}, {3, 5}} {
+			p.edge("1", "", assoc, ids[pair[0]], ids[pair[1]])
+		}
+		w := p.edge("1", "", assoc, ids[2], ids[5])
+		p.endLabel(w, "0..1", -0.85)
+		p.endLabel(w, "0..1", 0.85)
+		return p
+	}
 }

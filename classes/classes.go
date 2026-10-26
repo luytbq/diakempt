@@ -20,10 +20,9 @@ import (
 // Spacing, in pixels. The vertical gap leaves room for the trunks of
 // generalization arrows between ranks.
 const (
-	gapX      = 60
-	gapY      = 90
-	trunkStep = 10 // between the trunks of different parents in one gap
-	sweeps    = 6  // ordering passes
+	gapX   = 60
+	gapY   = 90
+	sweeps = 6 // ordering passes
 )
 
 // Unsupported explains why a diagram cannot be laid out as a class diagram.
@@ -57,7 +56,7 @@ func Layout(d *tidy.Diagram) error {
 	}
 	rank := ranks(nodes, links)
 	layers := order(nodes, links, rank)
-	place(layers, links, rank)
+	place(layers, links, rank, gaps(layers, links, rank))
 	keepCorner(d, nodes)
 	route(d, layers, links, rank)
 	return nil
@@ -137,6 +136,9 @@ func ranks(nodes []*tidy.Node, links []*link) map[*tidy.Node]int {
 		}
 		return false
 	}
+	if !anyRanked(links) {
+		return drawnRanks(nodes)
+	}
 	ranked := map[*tidy.Node]bool{}
 	for _, rel := range []relation{generalization, whole} {
 		for _, l := range links {
@@ -192,6 +194,106 @@ func ranks(nodes []*tidy.Node, links []*link) map[*tidy.Node]int {
 		}
 	}
 	// Close gaps left by empty ranks.
+	return dense(rank)
+}
+
+// sideRoom is the extra room two neighbors in a rank need for the labels of
+// the wires between them, which run side to side: role names and
+// multiplicities near each end, and the wire's own label. A label at a share
+// of the wire's length from its nearer end needs the wire long enough to keep
+// it off the class there, and the labels together need it long enough to
+// stand side by side.
+func sideRoom(a, b *tidy.Node, links []*link) float64 {
+	need := 0.0
+	for _, l := range links {
+		if !(l.w.Src == a && l.w.Dst == b) && !(l.w.Src == b && l.w.Dst == a) {
+			continue
+		}
+		sum := float64(labelPad)
+		for _, lb := range l.w.LabelSpans() {
+			sum += lb.W + labelPad
+			share := (1 - math.Abs(lb.Pos)) / 2
+			if share > 0.01 {
+				need = math.Max(need, math.Min((lb.W/2+labelPad)/share, maxSideRoom))
+			}
+		}
+		need = math.Max(need, sum)
+	}
+	return math.Max(0, need-gapX)
+}
+
+// labelPad keeps labels apart and off classes; maxSideRoom bounds the room a
+// label very close to an end can ask for.
+const (
+	labelPad    = 6
+	maxSideRoom = 400
+)
+
+func anyRanked(links []*link) bool {
+	for _, l := range links {
+		if l.rel != free {
+			return true
+		}
+	}
+	return false
+}
+
+// analysisRanks are the rows of an analysis class diagram, by stereotype:
+// boundaries on top, controls under them, entities at the bottom.
+var analysisRanks = map[string]int{"boundary": 0, "control": 1, "entity": 2}
+
+// drawnRanks ranks classes joined only by associations and dependencies,
+// which say nothing about what goes above what. When every class carries an
+// analysis stereotype and they are not all the same, those decide; otherwise
+// the rows the classes were drawn in do.
+func drawnRanks(nodes []*tidy.Node) map[*tidy.Node]int {
+	rank := map[*tidy.Node]int{}
+	for _, n := range nodes {
+		r, ok := analysisRanks[stereotype(n.V.Text)]
+		if !ok {
+			rank = nil
+			break
+		}
+		rank[n] = r
+	}
+	kinds := map[int]bool{}
+	for _, r := range rank {
+		kinds[r] = true
+	}
+	if len(kinds) > 1 {
+		return dense(rank)
+	}
+	rank = map[*tidy.Node]int{}
+	sorted := append([]*tidy.Node(nil), nodes...)
+	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Box.Y < sorted[j].Box.Y })
+	r, bottom := 0, math.Inf(-1)
+	for i, n := range sorted {
+		// A class starting below the middle of the row so far opens a new row.
+		if i > 0 && n.Box.Y > bottom {
+			r++
+		}
+		if i == 0 || n.Box.Y > bottom {
+			bottom = n.Box.Center().Y
+		}
+		rank[n] = r
+	}
+	return rank
+}
+
+// stereotype returns the first «name» or <<name>> in a text, lower case.
+func stereotype(t string) string {
+	for _, q := range [][2]string{{"«", "»"}, {"<<", ">>"}} {
+		if i := strings.Index(t, q[0]); i >= 0 {
+			if j := strings.Index(t[i:], q[1]); j > 0 {
+				return strings.ToLower(strings.TrimSpace(t[i+len(q[0]) : i+j]))
+			}
+		}
+	}
+	return ""
+}
+
+// dense renumbers ranks 0, 1, 2, ... keeping their order.
+func dense(rank map[*tidy.Node]int) map[*tidy.Node]int {
 	used := map[int]bool{}
 	for _, r := range rank {
 		used[r] = true
@@ -201,12 +303,12 @@ func ranks(nodes []*tidy.Node, links []*link) map[*tidy.Node]int {
 		levels = append(levels, r)
 	}
 	sort.Ints(levels)
-	dense := map[int]int{}
+	to := map[int]int{}
 	for i, r := range levels {
-		dense[r] = i
+		to[r] = i
 	}
 	for n, r := range rank {
-		rank[n] = dense[r]
+		rank[n] = to[r]
 	}
 	return rank
 }
@@ -288,17 +390,24 @@ func order(nodes []*tidy.Node, links []*link, rank map[*tidy.Node]int) [][]*tidy
 // place sets coordinates: ranks stacked top to bottom with their tops
 // aligned, and each class centered under the classes it hangs from as far as
 // its neighbors allow.
-func place(layers [][]*tidy.Node, links []*link, rank map[*tidy.Node]int) {
+func place(layers [][]*tidy.Node, links []*link, rank map[*tidy.Node]int, gaps []float64) {
 	y := 0.0
-	for _, l := range layers {
+	for r, l := range layers {
 		x := 0.0
 		h := 0.0
-		for _, n := range l {
+		for i, n := range l {
 			n.Box.X, n.Box.Y = x, y
 			x += n.Box.W + gapX
+			if i+1 < len(l) {
+				x += sideRoom(n, l[i+1], links)
+			}
 			h = math.Max(h, n.Box.H)
 		}
-		y += h + gapY
+		gap := float64(gapY)
+		if r < len(gaps) {
+			gap = gaps[r]
+		}
+		y += h + gap
 	}
 	parents := func(n *tidy.Node) []*tidy.Node {
 		var out []*tidy.Node
@@ -337,6 +446,9 @@ func place(layers [][]*tidy.Node, links []*link, rank map[*tidy.Node]int) {
 			}
 			n.Box.X = x
 			prev = x + n.Box.W + gapX
+			if i+1 < len(l) {
+				prev += sideRoom(n, l[i+1], links)
+			}
 			if !math.IsNaN(desired[i]) {
 				over += n.Box.Center().X - desired[i]
 				cnt++
@@ -385,68 +497,209 @@ func nearestShift(t *tidy.Node, nodes []*tidy.Node) geom.Point {
 	return geom.Point{X: best.Box.X - best.Orig.X, Y: best.Box.Y - best.Orig.Y}
 }
 
-// route draws generalizations between adjacent ranks as trunks, one per
-// parent: from the top of each child up to a shared level in the gap, across
-// to the parent's center, and up into its bottom. Every other wire is routed
-// around the classes afterwards, so it sees the trunks.
-func route(d *tidy.Diagram, layers [][]*tidy.Node, links []*link, rank map[*tidy.Node]int) {
-	rankTop := make([]float64, len(layers))
-	for r, l := range layers {
-		rankTop[r] = math.Inf(1)
-		for _, n := range l {
-			rankTop[r] = math.Min(rankTop[r], n.Box.Y)
-		}
+// Channel spacing, in pixels: the room above and below the levels in a gap,
+// and between two levels.
+const (
+	channelPad  = 20
+	channelStep = 12
+)
+
+// channel reports whether a link runs through the gap between two adjacent
+// ranks on a level of its own, and trunk whether it joins a trunk there.
+func channel(l *link, rank map[*tidy.Node]int) bool {
+	a, b := rank[l.w.Src], rank[l.w.Dst]
+	return (a-b == 1 || b-a == 1) && !trunk(l, rank)
+}
+
+func trunk(l *link, rank map[*tidy.Node]int) bool {
+	return l.rel == generalization && rank[l.down] == rank[l.up]+1
+}
+
+// gaps returns the height of each gap between ranks: enough for its trunks
+// and channels.
+func gaps(layers [][]*tidy.Node, links []*link, rank map[*tidy.Node]int) []float64 {
+	if len(layers) < 2 {
+		return nil
 	}
-	trunks := map[*tidy.Node]int{} // parent --> trunk index in its gap
-	perGap := map[int]int{}
-	exits := map[*tidy.Node]int{} // child --> generalizations leaving it so far
-	children := map[*tidy.Node]int{}
+	levels := make([]int, len(layers)-1)
+	parents := map[*tidy.Node]bool{}
 	for _, l := range links {
-		if l.rel == generalization && rank[l.down] == rank[l.up]+1 {
-			children[l.down]++
+		switch {
+		case trunk(l, rank):
+			if !parents[l.up] {
+				parents[l.up] = true
+				levels[rank[l.up]]++
+			}
+		case channel(l, rank):
+			levels[min(rank[l.w.Src], rank[l.w.Dst])]++
 		}
 	}
+	out := make([]float64, len(levels))
+	for i, n := range levels {
+		out[i] = math.Max(gapY, 2*channelPad+float64(max(n-1, 0))*channelStep)
+	}
+	return out
+}
+
+// route draws the wires between adjacent ranks through the gap between
+// them. Generalizations become trunks, one per parent: from the top of each
+// child up to a shared level, across to the parent, and up into its bottom.
+// Every other wire between adjacent ranks gets a level of its own, leaving
+// the upper class from its bottom and entering the lower one from its top.
+// Levels are ordered and ports spread along each side to avoid crossings.
+// Wires within a rank or across several are routed around the classes
+// afterwards, so they see the rest.
+func route(d *tidy.Diagram, layers [][]*tidy.Node, links []*link, rank map[*tidy.Node]int) {
+	n := len(layers)
+	top, bottom := make([]float64, n), make([]float64, n)
+	for r, l := range layers {
+		top[r], bottom[r] = math.Inf(1), math.Inf(-1)
+		for _, c := range l {
+			top[r] = math.Min(top[r], c.Box.Y)
+			bottom[r] = math.Max(bottom[r], c.Box.Bottom())
+		}
+	}
+	// A run is what crosses a gap: a trunk (one parent and its children) or
+	// one channel wire.
+	type run struct {
+		links      []*link
+		upper      *tidy.Node
+		lowers     []*tidy.Node
+		gap        int
+		level      float64
+		upX        float64 // where it meets the upper class
+		downX      []float64
+		upperFrac  float64
+		lowerFracs []float64
+	}
+	var runs []*run
+	byParent := map[*tidy.Node]*run{}
 	var rest []*link
 	for _, l := range links {
-		if l.rel != generalization || rank[l.down] != rank[l.up]+1 {
+		switch {
+		case trunk(l, rank):
+			r := byParent[l.up]
+			if r == nil {
+				r = &run{upper: l.up, gap: rank[l.up]}
+				byParent[l.up] = r
+				runs = append(runs, r)
+			}
+			r.links = append(r.links, l)
+			r.lowers = append(r.lowers, l.down)
+		case channel(l, rank):
+			up, down := l.w.Src, l.w.Dst
+			if rank[up] > rank[down] {
+				up, down = down, up
+			}
+			runs = append(runs, &run{links: []*link{l}, upper: up, lowers: []*tidy.Node{down}, gap: rank[up]})
+		default:
 			rest = append(rest, l)
-			continue
 		}
-		p, c := l.up, l.down
-		k, ok := trunks[p]
-		if !ok {
-			k = perGap[rank[c]]
-			perGap[rank[c]]++
-			trunks[p] = k
+	}
+	// Ports: the ends on each side of a class, in the order of the classes
+	// they lead to, spread evenly along it.
+	type end struct {
+		r   *run
+		k   int // index into r.lowers, or -1 for the upper end
+		key float64
+	}
+	sides := map[*tidy.Node][]*end{} // bottom sides
+	tops := map[*tidy.Node][]*end{}
+	for _, r := range runs {
+		sum := 0.0
+		for _, c := range r.lowers {
+			sum += c.Box.Center().X
 		}
-		trunkY := rankTop[rank[c]] - gapY/2 - float64(k)*trunkStep
-		// A child with two parents leaves from two points on its top side.
-		fx := 0.5
-		if n := children[c]; n > 1 {
-			fx = float64(exits[c]+1) / float64(n+1)
+		sides[r.upper] = append(sides[r.upper], &end{r: r, k: -1, key: sum / float64(len(r.lowers))})
+		r.lowerFracs = make([]float64, len(r.lowers))
+		r.downX = make([]float64, len(r.lowers))
+		for k, c := range r.lowers {
+			tops[c] = append(tops[c], &end{r: r, k: k, key: r.upper.Box.Center().X})
 		}
-		exits[c]++
-		from := geom.Point{X: c.Box.X + fx*c.Box.W, Y: c.Box.Y}
-		to := geom.Point{X: p.Box.Center().X, Y: p.Box.Bottom()}
-		w := l.w
-		srcIsChild := w.Src == c
-		pts := []geom.Point{{X: from.X, Y: trunkY}, {X: to.X, Y: trunkY}}
-		if math.Abs(from.X-to.X) < 0.5 {
-			pts = nil
-		}
-		if !srcIsChild {
-			for i, j := 0, len(pts)-1; i < j; i, j = i+1, j-1 {
-				pts[i], pts[j] = pts[j], pts[i]
+	}
+	spread := func(m map[*tidy.Node][]*end, set func(e *end, frac, x float64)) {
+		for c, es := range m {
+			sort.SliceStable(es, func(i, j int) bool { return es[i].key < es[j].key })
+			for i, e := range es {
+				f := float64(i+1) / float64(len(es)+1)
+				set(e, f, c.Box.X+f*c.Box.W)
 			}
 		}
-		w.Points = pts
-		childEnd, parentEnd := "exit", "entry"
-		if !srcIsChild {
-			childEnd, parentEnd = "entry", "exit"
+	}
+	spread(sides, func(e *end, f, x float64) { e.r.upperFrac, e.r.upX = f, x })
+	spread(tops, func(e *end, f, x float64) { e.r.lowerFracs[e.k], e.r.downX[e.k] = f, x })
+	// Levels: in each gap, a run whose upper end lies inside another run's
+	// span goes below it, where its drop does not cross that run's level.
+	gapRuns := map[int][]*run{}
+	for _, r := range runs {
+		gapRuns[r.gap] = append(gapRuns[r.gap], r)
+	}
+	span := func(r *run) (float64, float64) {
+		lo, hi := r.upX, r.upX
+		for _, x := range r.downX {
+			lo, hi = math.Min(lo, x), math.Max(hi, x)
 		}
-		anchor(w, childEnd, fx, 0)
-		anchor(w, parentEnd, 0.5, 1)
-		w.Routed = true
+		return lo, hi
+	}
+	cost := func(a, b *run) int {
+		// Crossings when a's level is above b's: b's drops from the upper
+		// rank cross a's level, and a's drops into the lower rank cross
+		// b's level.
+		c := 0
+		alo, ahi := span(a)
+		blo, bhi := span(b)
+		if b.upX > alo && b.upX < ahi {
+			c++
+		}
+		for _, x := range a.downX {
+			if x > blo && x < bhi {
+				c++
+			}
+		}
+		return c
+	}
+	for g, rs := range gapRuns {
+		wins := map[*run]int{}
+		for i, a := range rs {
+			for _, b := range rs[i+1:] {
+				switch ab, ba := cost(a, b), cost(b, a); {
+				case ab < ba:
+					wins[a]++
+				case ba < ab:
+					wins[b]++
+				}
+			}
+		}
+		sort.SliceStable(rs, func(i, j int) bool { return wins[rs[i]] > wins[rs[j]] })
+		h := top[g+1] - bottom[g]
+		step := 0.0
+		if len(rs) > 1 {
+			step = math.Min(channelStep*2, (h-2*channelPad)/float64(len(rs)-1))
+		}
+		first := bottom[g] + (h-step*float64(len(rs)-1))/2
+		for i, r := range rs {
+			r.level = first + float64(i)*step
+		}
+	}
+	for _, r := range runs {
+		for k, l := range r.links {
+			pts := []geom.Point{{X: r.upX, Y: r.level}, {X: r.downX[k], Y: r.level}}
+			if math.Abs(r.upX-r.downX[k]) < 0.5 {
+				pts = nil
+			}
+			w := l.w
+			upperEnd, lowerEnd := "exit", "entry"
+			if w.Src != r.upper {
+				upperEnd, lowerEnd = "entry", "exit"
+				for i, j := 0, len(pts)-1; i < j; i, j = i+1, j-1 {
+					pts[i], pts[j] = pts[j], pts[i]
+				}
+			}
+			w.Points = pts
+			anchor(w, upperEnd, r.upperFrac, 1)
+			anchor(w, lowerEnd, r.lowerFracs[k], 0)
+			w.Routed = true
+		}
 	}
 	for _, l := range rest {
 		d.RouteWire(l.w)
