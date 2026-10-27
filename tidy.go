@@ -225,19 +225,24 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 		if err := k.lay(w); err != nil {
 			dr.StepDowns = append(dr.StepDowns, k.op+" not possible: "+err.Error())
 			w.Restore(orig)
-		} else if after := w.Measure(); worse(after, dr.Before) && !opt.Force {
-			dr.StepDowns = append(dr.StepDowns, fmt.Sprintf("%s scored %.1f against %.1f before", k.op, after.Score, dr.Before.Score))
-			w.Restore(orig)
 		} else {
-			log := &tidy.Log{Counts: map[string]int{k.op: 1}}
-			dr.Applied, dr.After = string(lv), after
-			dr.Operations = log.Ops(opNames())
-			dr.Details = []report.Detail{{Op: k.op, Msg: "laid out as " + k.as}}
-			if w.Changed() {
-				w.Patch()
-				return dr, true
+			after := w.Measure()
+			if worse(after, dr.Before) && !opt.Force {
+				dr.StepDowns = append(dr.StepDowns, fmt.Sprintf("%s scored %.1f against %.1f before", k.op, after.Score, dr.Before.Score))
+				w.Restore(orig)
+			} else {
+				// The layout moved the wires the labels sit on, so settle them
+				// on the geometry that is kept.
+				after, log := settleLabels(w, after, lv, opt, k.op)
+				dr.Applied, dr.After = string(lv), after
+				dr.Operations = log.Ops(opNames())
+				dr.Details = append([]report.Detail{{Op: k.op, Msg: "laid out as " + k.as}}, log.Details...)
+				if w.Changed() {
+					w.Patch()
+					return dr, true
+				}
+				return unchanged(dr), false
 			}
-			return unchanged(dr), false
 		}
 	}
 	flow := (dr.Kind == detect.Flowchart || dr.Kind == detect.Swimlane || dr.Kind == detect.State) && opt.enabled("flowlayout", lv)
@@ -253,30 +258,32 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 		plan, err := relayout.Run(w, sd, withLanes, tm)
 		if err != nil {
 			reason = op + " not possible: " + err.Error()
-		} else if after := w.Measure(); worse(after, dr.Before) && !opt.Force {
-			reason = fmt.Sprintf("%s scored %.1f against %.1f before", op, after.Score, dr.Before.Score)
 		} else {
-			log := &tidy.Log{}
-			log.Counts = map[string]int{op: 1}
-			dr.Applied = string(lv)
-			dr.After = after
-			dr.Operations = log.Ops(opNames())
-			as := dr.Kind
-			if as == detect.State {
-				as = "state machine"
-			}
-			if free {
-				as = "flowchart"
-				if withLanes {
-					as = "swimlane"
+			after := w.Measure()
+			if worse(after, dr.Before) && !opt.Force {
+				reason = fmt.Sprintf("%s scored %.1f against %.1f before", op, after.Score, dr.Before.Score)
+			} else {
+				after, log := settleLabels(w, after, lv, opt, op)
+				dr.Applied = string(lv)
+				dr.After = after
+				dr.Operations = log.Ops(opNames())
+				as := dr.Kind
+				if as == detect.State {
+					as = "state machine"
 				}
+				if free {
+					as = "flowchart"
+					if withLanes {
+						as = "swimlane"
+					}
+				}
+				dr.Details = append([]report.Detail{{Op: op, Msg: fmt.Sprintf("laid out as a %s, direction %s", as, plan.Dir)}}, log.Details...)
+				if w.Changed() {
+					w.Patch()
+					return dr, true
+				}
+				return unchanged(dr), false
 			}
-			dr.Details = []report.Detail{{Op: op, Msg: fmt.Sprintf("laid out as a %s, direction %s", as, plan.Dir)}}
-			if w.Changed() {
-				w.Patch()
-				return dr, true
-			}
-			return unchanged(dr), false
 		}
 		dr.StepDowns = append(dr.StepDowns, reason)
 		w.Restore(orig)
@@ -318,6 +325,24 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 	}
 	w.Restore(orig)
 	return dr, false
+}
+
+// settleLabels runs Labels on a layout that was just accepted. Labels
+// minimizes each label's own hits, not the score, so its moves can still raise
+// the measured defects; when they do by the never-worse rule (docs/adr/0004),
+// the geometry and the labels entries go back to the layout's.
+func settleLabels(w *tidy.Diagram, laid report.Metrics, lv Level, opt Options, op string) (report.Metrics, *tidy.Log) {
+	log := &tidy.Log{Counts: map[string]int{op: 1}}
+	if !opt.enabled("labels", lv) {
+		return laid, log
+	}
+	saved := w.Save()
+	w.Labels(log)
+	if settled := w.Measure(); !worse(settled, laid) {
+		return settled, log
+	}
+	w.Restore(saved)
+	return laid, &tidy.Log{Counts: map[string]int{op: 1}}
 }
 
 // runLevel applies the general operations of one level.

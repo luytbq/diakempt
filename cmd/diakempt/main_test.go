@@ -190,7 +190,7 @@ func TestStrictExitsThreeOnAWarning(t *testing.T) {
 // TestStrictExitsThreeWhenForcedResultHasMoreDefects: --force keeps a result
 // the keep rule rejects, and --strict reports that kept result as worse.
 func TestStrictExitsThreeWhenForcedResultHasMoreDefects(t *testing.T) {
-	in := filepath.Join("..", "..", "corpus", "clean", "sequence", "06-checkout.drawio")
+	in := filepath.Join("..", "..", "corpus", "clean", "er", "01-tables-3.drawio")
 	code, _, stderr := runCLI("--dry-run", "--strict", "--force", in)
 	if code != exitStrict {
 		t.Fatalf("exit %d, want %d: %s", code, exitStrict, stderr)

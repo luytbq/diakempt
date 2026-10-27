@@ -38,6 +38,9 @@ func (d *Diagram) Labels(log *Log) {
 			orig := w.labels[i]
 			bestHits := d.labelHits(boxes[i], nil, w, i)
 			bestPos := orig.pos
+			// The search minimizes this label's own hits, not the diagram
+			// score; the other labels keep their places, so the two can
+			// disagree.
 			for k := -9; k <= 9; k++ {
 				pos := float64(k) / 10
 				w.labels[i].pos = pos
@@ -59,8 +62,21 @@ func (d *Diagram) Labels(log *Log) {
 	}
 }
 
-// labelHits counts what a label box overlaps: solid shapes, other labels and
-// free texts. self and (wire, index) identify the label itself.
+// lifelineLine is the dashed center line of a UML lifeline: from below its head
+// (style "size", default 40) to its bottom, at the box's center. Measure counts
+// a label struck by it as an overlap, so Labels must see the same line.
+func lifelineLine(n *Node) (geom.Segment, bool) {
+	if n.V.Shape != "umlLifeline" {
+		return geom.Segment{}, false
+	}
+	head := geom.ParseNumber(n.V.Style.Value("size", "40"))
+	c := n.Box.Center().X
+	return geom.Segment{A: geom.Point{X: c, Y: n.Box.Y + head}, B: geom.Point{X: c, Y: n.Box.Bottom()}}, true
+}
+
+// labelHits counts what a label box overlaps: solid shapes, other labels, free
+// texts and UML lifeline center lines. self and (wire, index) identify the
+// label itself.
 func (d *Diagram) labelHits(b geom.Rect, self *Node, wire *Wire, index int) int {
 	in := b.Inset(1)
 	hits := 0
@@ -70,6 +86,16 @@ func (d *Diagram) labelHits(b geom.Rect, self *Node, wire *Wire, index int) int 
 		}
 		if in.Overlaps(n.Box.Inset(1)) {
 			hits++
+		}
+	}
+	// Measure lists wire labels and free texts that are not overlays, so an
+	// overlay frame drawn over a lifeline is not counted there; moving it off
+	// the line would fix nothing the score sees.
+	if self == nil || !self.Overlay {
+		for _, n := range d.Nodes {
+			if line, ok := lifelineLine(n); ok && line.CrossesRect(b, 2) {
+				hits++
+			}
 		}
 	}
 	for _, w := range d.Wires {

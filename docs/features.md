@@ -402,8 +402,11 @@ Passes repeat until no wire changes.
 ### labels (safe)
 
 A free text that overlaps a shape or another label moves to the nearest clear
-spot within 60px. A wire label that overlaps something slides along its wire to
-the clear position nearest where it was.
+spot within 60px. A wire label that overlaps something, including a label
+struck by a UML lifeline's center line, slides along its wire to the clear
+position nearest where it was. The labels operation also settles wire labels on
+the geometry an accepted flowlayout, seqlayout or other kind layout produced,
+and keeps those moves only when they do not make the diagram worse.
 
 ### align (normal)
 
