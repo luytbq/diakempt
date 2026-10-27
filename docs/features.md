@@ -427,7 +427,9 @@ step apart) become the median gap.
 
 An empty band across the whole diagram wider than four --min-gap closes down
 to two --min-gap. Only a container's edges block a band; its empty inside does
-not. Other diagrams and decoration on the page block bands too.
+not. Other diagrams and decoration on the page block bands too; a band that
+ends on one of them, or whose closing would land content on one, stays open,
+and the bands after it still close.
 
 ### grid (normal)
 

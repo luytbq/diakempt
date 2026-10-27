@@ -332,18 +332,25 @@ func median(v []float64) float64 {
 func (d *Diagram) Compact(gap float64, log *Log) {
 	for _, ax := range []axis{axisX, axisY} {
 		for iter := 0; iter < 50; iter++ {
-			type span struct{ lo, hi float64 }
+			// fixed marks the spans of everything else on the page. Shift
+			// leaves them where they are, so a band that ends on one of them
+			// stays open; its far edge still counts as taken, which keeps
+			// content moved into a later band clear of it.
+			type span struct {
+				lo, hi float64
+				fixed  bool
+			}
 			var spans []span
 			for _, n := range d.Nodes {
 				if n.Container {
 					// Only a container's edges block; its inside may be empty.
-					spans = append(spans, span{start(n.Box, ax), start(n.Box, ax) + 1}, span{end(n.Box, ax) - 1, end(n.Box, ax)})
+					spans = append(spans, span{start(n.Box, ax), start(n.Box, ax) + 1, false}, span{end(n.Box, ax) - 1, end(n.Box, ax), false})
 					continue
 				}
-				spans = append(spans, span{start(n.Box, ax), end(n.Box, ax)})
+				spans = append(spans, span{start(n.Box, ax), end(n.Box, ax), false})
 			}
 			for _, o := range d.Others {
-				spans = append(spans, span{start(o, ax), end(o, ax)})
+				spans = append(spans, span{start(o, ax), end(o, ax), true})
 			}
 			for _, w := range d.Wires {
 				for _, p := range w.Path() {
@@ -351,18 +358,34 @@ func (d *Diagram) Compact(gap float64, log *Log) {
 					if ax == axisY {
 						v = p.Y
 					}
-					spans = append(spans, span{v, v})
+					spans = append(spans, span{v, v, false})
 				}
 			}
-			sort.Slice(spans, func(i, j int) bool { return spans[i].lo < spans[j].lo })
+			// Where two spans start at one coordinate, the fixed one sorts
+			// first: a band that reaches a node and a box that cannot move
+			// together stays open, instead of pulling the node away from that
+			// box.
+			sort.Slice(spans, func(i, j int) bool {
+				if spans[i].lo != spans[j].lo {
+					return spans[i].lo < spans[j].lo
+				}
+				return spans[i].fixed && !spans[j].fixed
+			})
 			found := false
 			reach := math.Inf(-1)
 			for i, s := range spans {
-				if i > 0 && s.lo-reach > 4*gap {
+				if i > 0 && s.lo-reach > 4*gap && !s.fixed {
+					before := d.Save()
 					d.Shift(ax, s.lo, -(s.lo - reach - 2*gap))
-					log.add("compact", nil, "closed an empty band of %s px", geom.Format(s.lo-reach))
-					found = true
-					break
+					if d.shiftedOntoOthers(before) {
+						// Content behind the band would land on a box that
+						// stays put, so the band stays open.
+						d.Restore(before)
+					} else {
+						log.add("compact", nil, "closed an empty band of %s px", geom.Format(s.lo-reach))
+						found = true
+						break
+					}
 				}
 				reach = math.Max(reach, s.hi)
 			}
@@ -371,6 +394,23 @@ func (d *Diagram) Compact(gap float64, log *Log) {
 			}
 		}
 	}
+}
+
+// shiftedOntoOthers reports whether the nodes the last Shift moved now cover
+// part of a box of another diagram or of the decoration that they were clear
+// of before.
+func (d *Diagram) shiftedOntoOthers(before Snapshot) bool {
+	for i, n := range d.Nodes {
+		if n.Box == before.boxes[i] {
+			continue
+		}
+		for _, o := range d.Others {
+			if n.Box.Overlaps(o) && !before.boxes[i].Overlaps(o) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Grid moves each shape so its center sits on the grid. Centers that were
