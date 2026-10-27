@@ -2,6 +2,7 @@ package diakempt
 
 import (
 	"bytes"
+	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -14,6 +15,8 @@ import (
 	"github.com/luytbq/diakempt/internal/messify"
 	"github.com/luytbq/diakempt/internal/xmltree"
 	"github.com/luytbq/diakempt/report"
+	"github.com/luytbq/diakempt/segment"
+	"github.com/luytbq/diakempt/text"
 	"github.com/luytbq/diakempt/tidy"
 	"github.com/luytbq/diakempt/view"
 )
@@ -297,15 +300,15 @@ func TestScatteredSequenceSettlesLabelsAfterSeqLayout(t *testing.T) {
 // its label overlaps at or below the per-file ceiling in the table.
 func TestSequenceCorpusDoesNotAddLabelOverlaps(t *testing.T) {
 	limits := map[string]int{
-		"01-uml-3x4.drawio":            1,
-		"02-uml-4x7.drawio":            2,
-		"03-uml-5x10.drawio":           6,
+		"01-uml-3x4.drawio":            0,
+		"02-uml-4x7.drawio":            0,
+		"03-uml-5x10.drawio":           0,
 		"04-hand-3x5.drawio":           0,
 		"05-hand-4x6.drawio":           0,
-		"06-checkout.drawio":           1,
-		"07-checkout-scattered.drawio": 1,
-		"08-drawn.drawio":              2,
-		"09-drawn-scattered.drawio":    2,
+		"06-checkout.drawio":           0,
+		"07-checkout-scattered.drawio": 0,
+		"08-drawn.drawio":              0,
+		"09-drawn-scattered.drawio":    0,
 	}
 	files, err := filepath.Glob("corpus/clean/sequence/*.drawio")
 	if err != nil {
@@ -323,6 +326,189 @@ func TestSequenceCorpusDoesNotAddLabelOverlaps(t *testing.T) {
 		if got := labelOverlapsAfter(t, f); got > want {
 			t.Errorf("%s: %d label overlaps after, want at most %d", name, got, want)
 		}
+	}
+}
+
+// selfCallDiagram is a sequence diagram with two lifelines and an activation
+// bar whose self message carries a label wider than the gap the lifelines get
+// by default, so a label centered on the loop would be struck by the line.
+const selfCallDiagram = `<mxGraphModel><root>
+<mxCell id="0"/><mxCell id="1" parent="0"/>
+<mxCell id="c1" value="Customer" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;" vertex="1" parent="1"><mxGeometry x="90" y="40" width="20" height="400" as="geometry"/></mxCell>
+<mxCell id="c2" value="Web shop" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;" vertex="1" parent="1"><mxGeometry x="190" y="40" width="100" height="400" as="geometry"/></mxCell>
+<mxCell id="b1" value="" style="html=1;perimeter=orthogonalPerimeter;" vertex="1" parent="c1"><mxGeometry x="95" y="80" width="10" height="150" as="geometry"/></mxCell>
+<mxCell id="e2" value="ask" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;" edge="1" parent="1" source="c1" target="c2"><mxGeometry relative="1" as="geometry"><mxPoint x="100" y="120" as="sourcePoint"/><mxPoint x="240" y="120" as="targetPoint"/></mxGeometry></mxCell>
+<mxCell id="e1" value="a self message label wider than the default gap" style="html=1;align=left;spacingLeft=2;endArrow=block;rounded=0;edgeStyle=orthogonalEdgeStyle;curved=0;" edge="1" parent="1" source="b1" target="b1"><mxGeometry relative="1" as="geometry"/></mxCell>
+</root></mxGraphModel>`
+
+// TestSeqLayoutPutsASelfMessageLabelBesideItsLoop: the label goes in the room
+// between the loop and the next lifeline; centered on the loop edge it would
+// cross the line it belongs to.
+func TestSeqLayoutPutsASelfMessageLabelBesideItsLoop(t *testing.T) {
+	res, err := Tidy([]byte(selfCallDiagram), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Report.Diagrams) != 1 {
+		t.Fatalf("%d diagrams, want 1", len(res.Report.Diagrams))
+	}
+	d := res.Report.Diagrams[0]
+	if d.After.LabelOverlaps != 0 {
+		t.Errorf("%d label overlaps after, want 0", d.After.LabelOverlaps)
+	}
+	applied := false
+	for _, op := range d.Operations {
+		if op.Op == "seqlayout" {
+			applied = true
+		}
+	}
+	if !applied {
+		t.Errorf("kept operations %v have no seqlayout entry", d.Operations)
+	}
+}
+
+// barLabelDiagram is a sequence diagram with two lifelines and a wide
+// activation bar on the right one. The message to the bar carries a label
+// wider than the default gap, so it needs the room between the left lifeline's
+// center line and the bar's edge. The bar is wide enough that leaving its
+// inset out of spacing would make that room too narrow.
+const barLabelDiagram = `<mxGraphModel><root>
+<mxCell id="0"/><mxCell id="1" parent="0"/>
+<mxCell id="c1" value="A" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;" vertex="1" parent="1"><mxGeometry x="90" y="40" width="20" height="400" as="geometry"/></mxCell>
+<mxCell id="c2" value="B" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;" vertex="1" parent="1"><mxGeometry x="190" y="40" width="100" height="400" as="geometry"/></mxCell>
+<mxCell id="b1" value="" style="html=1;perimeter=orthogonalPerimeter;" vertex="1" parent="c2"><mxGeometry x="10" y="80" width="80" height="200" as="geometry"/></mxCell>
+<mxCell id="e2" value="ask" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;" edge="1" parent="1" source="c1" target="c2"><mxGeometry relative="1" as="geometry"><mxPoint x="100" y="110" as="sourcePoint"/><mxPoint x="240" y="110" as="targetPoint"/></mxGeometry></mxCell>
+<mxCell id="e1" value="an ordinary message wider than the gap" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;" edge="1" parent="1" source="b1" target="c1"><mxGeometry relative="1" as="geometry"><mxPoint x="200" y="150" as="sourcePoint"/><mxPoint x="100" y="150" as="targetPoint"/></mxGeometry></mxCell>
+</root></mxGraphModel>`
+
+// labelStaysOnItsMessage reports whether a wire's first label in a draw.io file
+// is still level with the wire's message row, rather than slid along a lifeline
+// to find room.
+func labelStaysOnItsMessage(t *testing.T, data []byte, id string) bool {
+	t.Helper()
+	d, _, err := doc.Parse(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Pages) != 1 {
+		t.Fatalf("%d pages, want 1", len(d.Pages))
+	}
+	td := segment.Split(view.Build(d.Pages[0]))
+	for _, sd := range td.Diagrams {
+		diagram := tidy.New(sd, text.Default())
+		for _, w := range diagram.Wires {
+			if w.V.Cell.ID != id {
+				continue
+			}
+			boxes, pl := w.LabelBoxes(), w.Path()
+			if len(boxes) == 0 || len(pl) == 0 {
+				t.Fatalf("wire %s has no label or path", id)
+			}
+			return math.Abs(boxes[0].Center().Y-pl[0].Y) <= 10
+		}
+	}
+	t.Fatalf("wire %s is gone", id)
+	return false
+}
+
+// TestSeqLayoutLeavesRoomForALabelBesideABar: a label between a lifeline's
+// center line and the bar its message ends on must clear both. Leaving the
+// bar's inset out of spacing leaves no room beside the message, and the labels
+// operation can then only clear it by sliding it up the lifeline.
+func TestSeqLayoutLeavesRoomForALabelBesideABar(t *testing.T) {
+	res, err := Tidy([]byte(barLabelDiagram), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Report.Diagrams) != 1 {
+		t.Fatalf("%d diagrams, want 1", len(res.Report.Diagrams))
+	}
+	d := res.Report.Diagrams[0]
+	if d.After.LabelOverlaps != 0 {
+		t.Errorf("%d label overlaps after, want 0", d.After.LabelOverlaps)
+	}
+	applied := false
+	for _, op := range d.Operations {
+		if op.Op == "seqlayout" {
+			applied = true
+		}
+	}
+	if !applied {
+		t.Errorf("kept operations %v have no seqlayout entry", d.Operations)
+	}
+	if !labelStaysOnItsMessage(t, res.Output, "e1") {
+		t.Error("the label left its message row instead of fitting between the line and the bar")
+	}
+}
+
+// foundMessageDiagram is a sequence diagram with three lifelines, a frame and a
+// found message from the frame's edge to the third lifeline. Its label is wide
+// enough that, centered on the wire, it lands on the middle lifeline's line.
+const foundMessageDiagram = `<mxGraphModel><root>
+<mxCell id="0"/><mxCell id="1" parent="0"/>
+<mxCell id="c1" value="A" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;" vertex="1" parent="1"><mxGeometry x="80" y="40" width="20" height="320" as="geometry"/></mxCell>
+<mxCell id="c2" value="B" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;" vertex="1" parent="1"><mxGeometry x="520" y="40" width="100" height="320" as="geometry"/></mxCell>
+<mxCell id="c3" value="C" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;" vertex="1" parent="1"><mxGeometry x="1050" y="40" width="100" height="320" as="geometry"/></mxCell>
+<mxCell id="f" value="found order" style="shape=umlFrame;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="40" y="60" width="1200" height="190" as="geometry"/></mxCell>
+<mxCell id="m1" value="one" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;" edge="1" parent="1" source="c1" target="c2"><mxGeometry relative="1" as="geometry"><mxPoint x="100" y="140" as="sourcePoint"/><mxPoint x="560" y="145" as="targetPoint"/></mxGeometry></mxCell>
+<mxCell id="m2" value="two" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;" edge="1" parent="1" source="c2" target="c3"><mxGeometry relative="1" as="geometry"><mxPoint x="570" y="190" as="sourcePoint"/><mxPoint x="1090" y="198" as="targetPoint"/></mxGeometry></mxCell>
+<mxCell id="found" value="found: an order" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;" edge="1" parent="1" target="c3"><mxGeometry x="0" relative="1" as="geometry"><mxPoint x="40" y="90" as="sourcePoint"/></mxGeometry></mxCell>
+</root></mxGraphModel>`
+
+// foundLabelPosition reads the label position of the found message in a
+// draw.io file, from -1 at the source to 1 at the target.
+func foundLabelPosition(t *testing.T, data []byte) float64 {
+	t.Helper()
+	d, _, err := doc.Parse(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Pages) != 1 {
+		t.Fatalf("%d pages, want 1", len(d.Pages))
+	}
+	c := d.Pages[0].Cell("found")
+	if c == nil {
+		t.Fatal("the found message is gone")
+	}
+	x, _, _ := c.LabelPosition()
+	return x
+}
+
+// TestSeqLayoutLeavesAFreeEndLabelWhereTheAuthorPutIt: spacing reserves no gap
+// for a message with a free end, so placeMessageLabels must not move its label
+// either. Labels are switched off to read the layout's own placement; the
+// labels operation may still slide the label afterwards.
+func TestSeqLayoutLeavesAFreeEndLabelWhereTheAuthorPutIt(t *testing.T) {
+	want := foundLabelPosition(t, []byte(foundMessageDiagram))
+	res, err := Tidy([]byte(foundMessageDiagram), Options{Ops: map[string]bool{"labels": false}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Report.Diagrams) != 1 {
+		t.Fatalf("%d diagrams, want 1", len(res.Report.Diagrams))
+	}
+	d := res.Report.Diagrams[0]
+	applied := false
+	for _, op := range d.Operations {
+		if op.Op == "seqlayout" {
+			applied = true
+		}
+	}
+	if !applied {
+		t.Errorf("kept operations %v have no seqlayout entry", d.Operations)
+	}
+	if got := foundLabelPosition(t, res.Output); got != want {
+		t.Errorf("found label at %s after seqlayout, want the author's %s", geom.Format(got), geom.Format(want))
+	}
+
+	// With labels settled, the label that the layout left on a line is moved
+	// off it.
+	res, err = Tidy([]byte(foundMessageDiagram), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Report.Diagrams[0].After.LabelOverlaps; got != 0 {
+		t.Errorf("%d label overlaps after, want 0", got)
 	}
 }
 

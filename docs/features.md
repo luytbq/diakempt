@@ -143,8 +143,11 @@ A sequence diagram drawn with the editor's UML lifeline shape (shape=umlLifeline
 is laid out from scratch:
 
 - lifelines stay in their left-to-right order, in one row with their heads
-  aligned, at least 40px apart and wide enough apart for every message label
-  between them (a self call's label counts on its right);
+  aligned, at least 40px apart and wide enough apart for the label of every
+  message between them: such a label sits in the gap nearest the middle of its
+  message, clear of the lifelines and activation bars it crosses, and a self
+  call's label sits in the gap to its right (or right of the loop on the last
+  lifeline);
 - messages keep their time order (top to bottom; ties in document order) and
   get one row each, two for a self call, every message horizontal; the row
   height fits the tallest label;

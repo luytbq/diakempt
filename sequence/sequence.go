@@ -23,6 +23,7 @@ const (
 	firstRow    = 30 // from the bottom of the heads to the first message
 	minRow      = 36 // between two messages
 	selfWidth   = 35 // how far a self call reaches out
+	labelRoom   = 5  // beside a label where no other measure applies
 	barPad      = 10 // an activation bar beyond its first and last message
 	tailPad     = 40 // lifeline below the last message
 	frameHead   = 40 // above a frame's first message, for its title
@@ -267,6 +268,7 @@ func Layout(d *tidy.Diagram) error {
 		}
 	}
 	routeMessages(msgs, step)
+	placeMessageLabels(d, msgs, lifelines, index)
 	keepCornerFree(d)
 	return nil
 }
@@ -504,43 +506,73 @@ func rowOf(w *tidy.Wire) float64 {
 }
 
 // spacing returns the new lifeline centers: heads at least minGap apart, and
-// wide enough apart for every message label between them. The first lifeline
-// keeps its center.
+// every message label in a gap wide enough for it. The label of a message
+// spanning several gaps goes in the gap nearest the middle of the span, and a
+// self call's label in the gap to its right. The first lifeline keeps its
+// center.
 func spacing(d *tidy.Diagram, lifelines []*tidy.Node, msgs []*message, index map[*tidy.Node]int) []float64 {
 	n := len(lifelines)
 	gaps := make([]float64, n-1)
 	for i := range gaps {
 		gaps[i] = (lifelines[i].Box.W+lifelines[i+1].Box.W)/2 + minGap
 	}
-	need := func(m *message) (lo, hi int, width float64) {
-		w, _ := d.TextSize(m.w.V.Text, m.w.Style)
-		a, b := index[m.src], index[m.dst]
-		if a > b {
-			a, b = b, a
+	grow := func(i int, need float64) {
+		if gaps[i] < need {
+			gaps[i] = need
 		}
-		if m.self {
-			return a, a + 1, selfWidth + w + 10
-		}
-		return a, b, w + labelPad
 	}
 	for _, m := range msgs {
 		if m.src == nil || m.dst == nil {
 			continue
 		}
-		lo, hi, width := need(m)
-		if lo == hi || hi >= n {
+		w := 0.0
+		for _, s := range m.w.LabelSpans() {
+			w = math.Max(w, s.W)
+		}
+		if w == 0 {
 			continue
 		}
-		have := 0.0
-		for k := lo; k < hi; k++ {
-			have += gaps[k]
+		a, b := index[m.src], index[m.dst]
+		if a > b {
+			a, b = b, a
 		}
-		if have < width {
-			extra := (width - have) / float64(hi-lo)
-			for k := lo; k < hi; k++ {
-				gaps[k] += extra
+		if m.self {
+			if a+1 >= n {
+				continue
+			}
+			out := float64(selfWidth)
+			if m.w.Src != nil && m.w.Src != m.src {
+				out += barInset(m.w.Src, m.src, true)
+			}
+			grow(a, out+w+2*labelRoom)
+			continue
+		}
+		if b-a < 1 || b >= n {
+			continue
+		}
+		g, left, right, ok := labelGap(m, index, lifelines)
+		if !ok {
+			continue
+		}
+		// Bars on the lifelines at the gap's edges reach into the gap too;
+		// this over-reserves when a bar sits on another row, which is safer
+		// than reserving too little.
+		for _, bar := range d.Nodes {
+			if bar.Container || bar.Text || bar.Overlay {
+				continue
+			}
+			idx, ok := index[lifeline(bar.Parent)]
+			if !ok {
+				continue
+			}
+			if idx == g {
+				left = math.Max(left, barInset(bar, lifelines[g], true))
+			}
+			if idx == g+1 {
+				right = math.Max(right, barInset(bar, lifelines[g+1], false))
 			}
 		}
+		grow(g, w+labelPad+left+right)
 	}
 	centers := make([]float64, n)
 	centers[0] = lifelines[0].Box.Center().X
@@ -548,6 +580,55 @@ func spacing(d *tidy.Diagram, lifelines []*tidy.Node, msgs []*message, index map
 		centers[i] = centers[i-1] + gaps[i-1]
 	}
 	return centers
+}
+
+// labelGap is the gap a message's label goes in and how far the room on each
+// side starts from the lifeline center: the gap nearest the middle of the
+// lifelines the message joins, with an end's room starting at the edge of the
+// activation bar it sits on rather than at the center line. Spacing reserves
+// this gap and placeMessageLabels puts the label in it, so both use this to
+// agree on which gap and how much room.
+func labelGap(m *message, index map[*tidy.Node]int, lifelines []*tidy.Node) (g int, left, right float64, ok bool) {
+	if m.src == nil || m.dst == nil {
+		return 0, 0, 0, false
+	}
+	a, b := index[m.src], index[m.dst]
+	if a > b {
+		a, b = b, a
+	}
+	if b-a < 1 || b >= len(lifelines) {
+		return 0, 0, 0, false
+	}
+	g = a + (b-a-1)/2
+	if g == a {
+		end, life := m.w.Dst, m.dst
+		if index[m.src] == a {
+			end, life = m.w.Src, m.src
+		}
+		left = barInset(end, life, true)
+	}
+	if g == b-1 {
+		end, life := m.w.Src, m.src
+		if index[m.src] != b {
+			end, life = m.w.Dst, m.dst
+		}
+		right = barInset(end, life, false)
+	}
+	return g, left, right, true
+}
+
+// barInset is how far the side of a message end lies from its lifeline's center
+// in the direction the message leaves it. An activation bar is drawn beside the
+// line, so the label's room starts at the bar's edge, not the center line.
+func barInset(end, life *tidy.Node, right bool) float64 {
+	if end == nil || end == life {
+		return 0
+	}
+	off := end.Box.Center().X - life.Box.Center().X
+	if right {
+		return math.Max(0, off+end.Box.W/2)
+	}
+	return math.Max(0, end.Box.W/2-off)
 }
 
 // rowMap maps an old height to a new one, piecewise linearly through the
@@ -726,4 +807,84 @@ func endNode(attached, life *tidy.Node) *tidy.Node {
 		return attached
 	}
 	return life
+}
+
+// placeMessageLabels moves a message label that a lifeline's center line or an
+// activation bar strikes into the gap spacing reserved for it. A label that is
+// already clear keeps the place the author gave it. Only a wire's first label
+// is placed here; further labels (child edge-label cells) are left to the
+// labels operation. A message with a free end has no gap reserved for it, so
+// its label is left alone as well.
+func placeMessageLabels(d *tidy.Diagram, msgs []*message, lifelines []*tidy.Node, index map[*tidy.Node]int) {
+	for _, m := range msgs {
+		if m.src == nil || m.dst == nil {
+			continue
+		}
+		boxes := m.w.LabelBoxes()
+		if len(boxes) == 0 || !labelStruck(boxes[0], d, lifelines) {
+			continue
+		}
+		if m.self {
+			a := index[m.src]
+			out := 0.0
+			for _, p := range m.w.Path() {
+				out = math.Max(out, p.X)
+			}
+			center := out + boxes[0].W/2 + labelRoom
+			if a+1 < len(lifelines) {
+				center = (out + lifelines[a+1].Box.Center().X) / 2
+			}
+			m.w.PlaceLabel(0, geom.Point{X: center - out})
+			continue
+		}
+		g, leftInset, rightInset, ok := labelGap(m, index, lifelines)
+		if !ok {
+			continue
+		}
+		left := lifelines[g].Box.Center().X + leftInset
+		right := lifelines[g+1].Box.Center().X - rightInset
+		// Bars on the lifelines at the gap's edges reach into the gap too.
+		for _, n := range d.Nodes {
+			if n.Container || n.Text || n.Overlay {
+				continue
+			}
+			idx, ok := index[lifeline(n.Parent)]
+			if !ok || n.Box.Bottom() < boxes[0].Y || n.Box.Y > boxes[0].Bottom() {
+				continue
+			}
+			if idx == g {
+				left = math.Max(left, n.Box.Right())
+			}
+			if idx == g+1 {
+				right = math.Min(right, n.Box.X)
+			}
+		}
+		pl := m.w.Path()
+		if right <= left || len(pl) < 2 || pl[0].X == pl[len(pl)-1].X {
+			continue
+		}
+		t := ((left+right)/2 - pl[0].X) / (pl[len(pl)-1].X - pl[0].X)
+		m.w.PlaceLabel(math.Max(-1, math.Min(1, 2*t-1)), geom.Point{})
+	}
+}
+
+// labelStruck reports whether a label box would count as struck by a lifeline's
+// center line or an activation bar, the way Measure counts them.
+func labelStruck(b geom.Rect, d *tidy.Diagram, lifelines []*tidy.Node) bool {
+	for _, l := range lifelines {
+		head := geom.ParseNumber(l.V.Style.Value("size", "40"))
+		line := geom.Segment{A: geom.Point{X: l.Box.Center().X, Y: l.Box.Y + head}, B: geom.Point{X: l.Box.Center().X, Y: l.Box.Bottom()}}
+		if line.CrossesRect(b, 2) {
+			return true
+		}
+	}
+	for _, n := range d.Nodes {
+		if n.Container || n.Text || n.Overlay || lifeline(n.Parent) == nil {
+			continue
+		}
+		if b.Inset(1).Overlaps(n.Box.Inset(1)) && !n.Box.ContainsRect(b) {
+			return true
+		}
+	}
+	return false
 }
