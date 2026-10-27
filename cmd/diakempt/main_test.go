@@ -165,3 +165,34 @@ func TestVersion(t *testing.T) {
 		t.Errorf("exit %d, %q", code, stdout)
 	}
 }
+
+// TestStrictAcceptsBiggerAreaWhenDefectsDoNotGrow: --strict uses the same
+// never-worse rule as the keep decision, so a kept result with the same defects
+// and a slightly larger area passes.
+func TestStrictAcceptsBiggerAreaWhenDefectsDoNotGrow(t *testing.T) {
+	in := filepath.Join("..", "..", "corpus", "clean", "sequence", "08-drawn.drawio")
+	code, _, stderr := runCLI("--dry-run", "--strict", in)
+	if code != exitOK {
+		t.Fatalf("exit %d, want %d: %s", code, exitOK, stderr)
+	}
+}
+
+// TestStrictExitsThreeOnAWarning: a warning alone still fails the run.
+func TestStrictExitsThreeOnAWarning(t *testing.T) {
+	dir := t.TempDir()
+	in := copyCase(t, dir, "snap.drawio")
+	code, _, stderr := runCLI("--dry-run", "--strict", in)
+	if code != exitStrict {
+		t.Fatalf("exit %d, want %d: %s", code, exitStrict, stderr)
+	}
+}
+
+// TestStrictExitsThreeWhenForcedResultHasMoreDefects: --force keeps a result
+// the keep rule rejects, and --strict reports that kept result as worse.
+func TestStrictExitsThreeWhenForcedResultHasMoreDefects(t *testing.T) {
+	in := filepath.Join("..", "..", "corpus", "clean", "sequence", "06-checkout.drawio")
+	code, _, stderr := runCLI("--dry-run", "--strict", "--force", in)
+	if code != exitStrict {
+		t.Fatalf("exit %d, want %d: %s", code, exitStrict, stderr)
+	}
+}

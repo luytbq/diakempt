@@ -131,7 +131,11 @@ What the report says, and what to do:
   .drawio file.
 - input.not_drawio, input.malformed, input.no_pages, input.page_decode: the
   file is not a readable draw.io document; tell the user which.
-- Exit code 3 under --strict: there was a warning or a worse metric; read the
+- Exit code 3 under --strict: there was a warning, or the final kept result is
+  worse than the original under the never-worse rule (docs/adr/0004). --force
+  keeps such a result, and several passes can also add up past the tolerance
+  a single pass stayed within. Its "worse:" line names the defect score before
+  and after, or the area and wire length when only those grew. Read the
   report rather than treating it as a crash.
 - A result the user dislikes: try a lower level, switch single operations off
   (--no-NAME), or adjust a setting; the flags are in features.md.

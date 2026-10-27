@@ -120,9 +120,8 @@ func (d *Diagram) Measure() report.Metrics {
 		}
 	}
 	m.Area = d.Bounds().W * d.Bounds().H
-	m.Score = weightThrough*float64(m.WiresThroughNodes) + weightNodeOverlap*float64(m.NodeOverlaps) +
-		weightLabelOverlap*float64(m.LabelOverlaps) + weightWireOverlap*float64(m.WireOverlaps) +
-		weightCrossing*float64(m.WireCrossings) + weightArea*m.Area + weightLength*m.WireLength
+	m.Defects = DefectScore(m)
+	m.Score = m.Defects + weightArea*m.Area + weightLength*m.WireLength
 	return m
 }
 

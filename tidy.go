@@ -171,6 +171,12 @@ func addOps(a, b []report.OpCount) []report.OpCount {
 }
 
 func (pr *pageReport) into(rep *report.File) {
+	// The same rule as the keep decision (docs/adr/0004), applied to the
+	// final geometry against the original. A page tidied in several passes
+	// keeps its first Before, so this can differ from what each pass judged.
+	for i := range pr.diagrams {
+		pr.diagrams[i].Worse = worse(pr.diagrams[i].After, pr.diagrams[i].Before)
+	}
 	rep.Snap.Snapped += pr.snap.Snapped
 	rep.Snap.Details = append(rep.Snap.Details, pr.snap.Details...)
 	rep.Normalized = append(rep.Normalized, pr.normalized...)

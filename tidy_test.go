@@ -12,6 +12,7 @@ import (
 	"github.com/luytbq/diakempt/doc"
 	"github.com/luytbq/diakempt/internal/messify"
 	"github.com/luytbq/diakempt/internal/xmltree"
+	"github.com/luytbq/diakempt/report"
 )
 
 // input is one corpus file, possibly messified.
@@ -229,5 +230,34 @@ func TestCorpusSummary(t *testing.T) {
 		}
 		t.Logf("%s on %d files: through nodes %d-->%d, node overlaps %d-->%d, label overlaps %d-->%d, crossings %d-->%d, wire overlaps %d-->%d, stepped down %d",
 			lv, len(ins), before[0], after[0], before[1], after[1], before[2], after[2], before[3], after[3], before[4], after[4], stepped)
+	}
+}
+
+// TestWorseIsFalseForTheSameMetrics: keeping the original geometry after a
+// step down never counts as worse, whatever its area and wire length.
+func TestWorseIsFalseForTheSameMetrics(t *testing.T) {
+	m := report.Metrics{LabelOverlaps: 2, Area: 12345, WireLength: 678}
+	if worse(m, m) {
+		t.Errorf("the same metrics %+v is worse than itself", m)
+	}
+}
+
+// TestWorseTolersatesSmallGrowthWithoutNewDefects: with the defects unchanged,
+// area and wire length only count when they grew by more than a tenth.
+func TestWorseToleratesSmallGrowthWithoutNewDefects(t *testing.T) {
+	base := report.Metrics{LabelOverlaps: 2, Area: 10000, WireLength: 10000}
+	for _, tc := range []struct {
+		name  string
+		after report.Metrics
+		want  bool
+	}{
+		{"area up 5 percent", report.Metrics{LabelOverlaps: 2, Area: 10500, WireLength: 10000}, false},
+		{"area up 20 percent", report.Metrics{LabelOverlaps: 2, Area: 12000, WireLength: 10000}, true},
+		{"wire length up 5 percent", report.Metrics{LabelOverlaps: 2, Area: 10000, WireLength: 10500}, false},
+		{"wire length up 20 percent", report.Metrics{LabelOverlaps: 2, Area: 10000, WireLength: 12000}, true},
+	} {
+		if got := worse(tc.after, base); got != tc.want {
+			t.Errorf("%s: worse = %v, want %v", tc.name, got, tc.want)
+		}
 	}
 }

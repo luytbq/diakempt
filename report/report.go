@@ -55,6 +55,9 @@ type Diagram struct {
 	Details    []Detail  `json:"details,omitempty"`
 	Before     Metrics   `json:"before"`
 	After      Metrics   `json:"after"`
+	// Worse is true when the result this run kept is worse than the original
+	// under the never-worse rule (docs/adr/0004). --strict exits 3 for it.
+	Worse bool `json:"worse,omitempty"`
 }
 
 // OpCount is how many changes one operation made.
@@ -71,7 +74,8 @@ type Detail struct {
 }
 
 // Metrics counts layout defects. Score weighs them into one number; lower is
-// better.
+// better. Defects is the weighted defect part of Score, without area and wire
+// length; the text report quotes it to explain a kept result that is worse.
 type Metrics struct {
 	WiresThroughNodes int     `json:"wires_through_nodes"`
 	NodeOverlaps      int     `json:"node_overlaps"`
@@ -81,6 +85,7 @@ type Metrics struct {
 	Area              float64 `json:"area"`
 	WireLength        float64 `json:"wire_length"`
 	Score             float64 `json:"score"`
+	Defects           float64 `json:"defects"`
 }
 
 // Text renders the report for people. name is the input file name.
@@ -129,6 +134,9 @@ func (f File) Text(name string, verbose bool) string {
 			b.WriteString("    changes: none\n")
 		}
 		fmt.Fprintf(&b, "    before: %s\n    after:  %s\n", d.Before.text(), d.After.text())
+		if d.Worse {
+			fmt.Fprintf(&b, "    worse: %s\n", d.worseText())
+		}
 		if verbose {
 			writeDetails(&b, "    ", d.Details)
 		}
@@ -152,6 +160,15 @@ func (f File) Text(name string, verbose bool) string {
 func (m Metrics) text() string {
 	return fmt.Sprintf("%d wires through nodes, %d node overlaps, %d label overlaps, %d wire crossings, %d wire overlaps",
 		m.WiresThroughNodes, m.NodeOverlaps, m.LabelOverlaps, m.WireCrossings, m.WireOverlaps)
+}
+
+// worseText says in numbers why the kept result is worse than the original.
+func (d Diagram) worseText() string {
+	if d.After.Defects > d.Before.Defects {
+		return fmt.Sprintf("the kept result grew its defect score from %.1f to %.1f", d.Before.Defects, d.After.Defects)
+	}
+	return fmt.Sprintf("the kept result grew its area from %.0f to %.0f and its wire length from %.0f to %.0f",
+		d.Before.Area, d.After.Area, d.Before.WireLength, d.After.WireLength)
 }
 
 func writeDetails(b *strings.Builder, indent string, ds []Detail) {
@@ -188,10 +205,11 @@ func (f File) Warnings() int {
 	return n
 }
 
-// Worse reports whether any diagram scored worse after than before.
+// Worse reports whether any diagram's kept result is worse than its original
+// under the never-worse rule.
 func (f File) Worse() bool {
 	for _, d := range f.Diagrams {
-		if d.After.Score > d.Before.Score+1e-9 {
+		if d.Worse {
 			return true
 		}
 	}

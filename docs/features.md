@@ -32,14 +32,18 @@ leaves a half-written file.
 | (none) | human-readable report on stderr |
 | --json | JSON report on stdout: {"version", "files": [{"file", "output", "report", "error"}]}. Cannot be combined with -o -. |
 | --verbose | also list every change, detection signals and info issues |
-| --strict | exit 3 when any file has a warning or a diagram scored worse |
+| --strict | exit 3 when any file has a warning or a diagram's kept result is worse than its original under the never-worse rule |
 
 Report fields per file: pages, diagrams, decoration, snap (snapped, ambiguous,
 details), normalized, issues (code, severity, page, diagram, cells, message),
 changed. Per diagram: id, page, index, name, shapes, wires, kind, confidence, signals, forced,
-level, applied, step_downs, operations, details, before, after. Metrics:
+level, applied, step_downs, operations, details, before, after, worse. Metrics:
 wires_through_nodes, node_overlaps, label_overlaps, wire_crossings, wire_overlaps,
-area, wire_length, score.
+area, wire_length, score, defects (the weighted defect part of score).
+
+A diagram whose kept result is worse than its original under the never-worse
+rule gets a worse: line naming the defect score before and after, or the area
+and wire length before and after when only those grew.
 
 normalized is filled at the aggressive level only, and left out when empty.
 
@@ -48,7 +52,10 @@ normalized is filled at the aggressive level only, and left out when empty.
 - 0: success
 - 1: a file could not be read, processed or written
 - 2: bad flags
-- 3: --strict found a warning or a worse result
+- 3: --strict found a warning, or the final kept result is worse than the
+  original under the never-worse rule (docs/adr/0004). --force keeps such a
+  result, and several passes can add up past the tolerance even though no
+  single pass exceeded it.
 
 ## Levels and operations
 

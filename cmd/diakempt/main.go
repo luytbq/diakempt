@@ -3,7 +3,8 @@
 // It reads each file, writes the result next to it with .tidy before the
 // extension (or where -o says, or over the input with --in-place), and prints a
 // report on stderr. Exit codes: 0 success, 1 a file could not be read, processed
-// or written, 2 bad flags, 3 --strict found a warning or a worse result.
+// or written, 2 bad flags, 3 --strict found a warning or a kept diagram worse
+// than its original under the never-worse rule.
 package main
 
 import (
@@ -58,7 +59,7 @@ func flagSet(cfg *config, stderr io.Writer) (*flag.FlagSet, func() error) {
 	fs.BoolVar(&cfg.dryRun, "dry-run", false, "write no file, only print the report")
 	fs.BoolVar(&cfg.json, "json", false, "print the report as JSON on stdout")
 	fs.BoolVar(&cfg.verbose, "verbose", false, "list every change and the detection signals")
-	fs.BoolVar(&cfg.strict, "strict", false, "exit 3 when there is a warning or a diagram got worse")
+	fs.BoolVar(&cfg.strict, "strict", false, "exit 3 when there is a warning or a kept diagram is worse than its original")
 	fs.BoolVar(&cfg.opt.Force, "force", false, "keep results that score worse than the original")
 	fs.Int64Var(&cfg.opt.Seed, "seed", 1, "seed for randomized optimizers")
 	showVersion := fs.Bool("version", false, "print the version and exit")
