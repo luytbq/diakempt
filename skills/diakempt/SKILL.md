@@ -97,6 +97,12 @@ What the report says, and what to do:
   --type flowchart or --type swimlane.
 - Kind detected wrongly and the user does not want a relayout: rerun with
   --type unknown.
+- A page holds diagrams of different kinds and one is detected wrongly: force
+  only that one with --type 'ID=KIND', copying ID from the report, for example
+  --type 'Page-1 #2=sequence'; a plain --type would force every diagram.
+- type.no_diagram warning: an ID given to --type matches no diagram of that
+  file. Diagram indexes count from 1 per page, and a quoted name must match the
+  report exactly; rerun with --dry-run to read the IDs, then fix the flag.
 - "seqlayout not possible: fewer than two UML lifelines": the diagram mixes
   one UML lifeline with hand-drawn ones; only the general tidy ran. Drawing
   every participant the same way lets seqlayout run.

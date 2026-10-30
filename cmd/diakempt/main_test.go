@@ -122,6 +122,9 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 		{},
 		{"--level", "wild", "x.drawio"},
 		{"--type", "mindmap", "x.drawio"},
+		{"--type", "class", "--type", "er", "x.drawio"},
+		{"--type", "Page-1 #1=class", "--type", "Page-1 #1=er", "x.drawio"},
+		{"--type", "Page1=class", "x.drawio"},
 		{"-o", "out.drawio", "a.drawio", "b.drawio"},
 		{"-o", "out.drawio", "--in-place", "a.drawio"},
 		{"-o", "-", "--json", "a.drawio"},
@@ -194,5 +197,19 @@ func TestStrictExitsThreeWhenForcedResultHasMoreDefects(t *testing.T) {
 	code, _, stderr := runCLI("--dry-run", "--strict", "--force", in)
 	if code != exitStrict {
 		t.Fatalf("exit %d, want %d: %s", code, exitStrict, stderr)
+	}
+}
+
+func TestTypeTakesOneKindPerDiagramAndOneForTheFile(t *testing.T) {
+	dir := t.TempDir()
+	in := copyCase(t, dir, "snap.drawio")
+	code, _, stderr := runCLI("--dry-run", "--type", "flowchart", "--type", `Page-1 #3 "Choose"=swimlane`, "--type", "Page-2 #1=class", in)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	for _, want := range []string{`Page-1 #3 "Choose": swimlane (forced)`, `Page-1 #1 "Order": flowchart (forced)`, "[type.no_diagram]"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("report lacks %q:\n%s", want, stderr)
+		}
 	}
 }

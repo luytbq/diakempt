@@ -63,6 +63,7 @@ normalized is filled at the aggressive level only, and left out when empty.
 |---|---|
 | --level safe, normal, aggressive | how far the layout may change; default normal |
 | --type flowchart, swimlane, sequence, class, state, er, usecase, communication, package, deployment, unknown | treat every diagram as this kind |
+| --type ID=KIND | treat one diagram as KIND, for example --type 'Page-1 #2=sequence'; repeatable, and wins over a --type for the whole file |
 | --with-NAME | run operation NAME whatever the level |
 | --no-NAME | skip operation NAME |
 | --force | keep results that score worse than the original |
@@ -570,6 +571,14 @@ seqlayout, use case diagrams by usecaselayout, communication diagrams by
 commlayout, package diagrams by pkglayout, deployment diagrams by deploylayout; unknown diagrams get the general operations. --type overrides the
 detected kind, so --type flowchart or --type swimlane forces a relayout attempt
 and --type unknown prevents one.
+
+--type ID=KIND forces the kind of one diagram, for pages that hold diagrams of
+different kinds. ID is the diagram identifier as the report prints it: page and
+index, such as Page-1 #2, optionally followed by the quoted name, such as
+Page-1 #2 "Login", which must then match too. Several diagrams take several
+--type flags, and one --type without an ID covers the rest. An ID that matches
+no diagram of a file gives the warning type.no_diagram; a malformed ID or an
+unknown kind is a usage error.
 
 ## Input formats
 

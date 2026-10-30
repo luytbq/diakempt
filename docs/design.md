@@ -154,7 +154,8 @@ Component, BPMN, mind map and network diagrams are not detected yet; they are
 unknown.
 
 The user can force the kind for the whole file with a flag, for example
---type swimlane.
+--type swimlane, or for one diagram by its identifier, for example
+--type 'Page-1 #2=sequence', for pages holding diagrams of different kinds.
 
 ### optimize: levels
 
@@ -409,8 +410,6 @@ Each step ends with a tool that runs.
 
 Postponed on purpose:
 
-- forcing the kind per diagram by identifier, for example
-  --type "Page-1 #2"=sequence, for pages holding diagrams of different kinds;
 - changing wire style (for example straight to orthogonal) as an optimization;
 - a configuration file in the project folder, for example .diakempt.yaml; v1 uses
   flags only;

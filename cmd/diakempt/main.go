@@ -53,7 +53,7 @@ func flagSet(cfg *config, stderr io.Writer) (*flag.FlagSet, func() error) {
 	fs := flag.NewFlagSet("diakempt", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	level := fs.String("level", string(diakempt.Normal), "how far the layout may change: safe, normal or aggressive")
-	fs.StringVar(&cfg.opt.Kind, "type", "", "treat every diagram as this kind: "+strings.Join(diakempt.Kinds, ", "))
+	fs.Var(&typeFlag{&cfg.opt}, "type", "treat every diagram as this kind, or with ID=KIND one diagram, such as 'Page-1 #2=sequence'; repeatable. Kinds: "+strings.Join(diakempt.Kinds, ", "))
 	fs.StringVar(&cfg.out, "o", "", "output path, or - for stdout (one input file only)")
 	fs.BoolVar(&cfg.inPlace, "in-place", false, "overwrite the input, keeping a numbered .bak copy")
 	fs.BoolVar(&cfg.dryRun, "dry-run", false, "write no file, only print the report")
@@ -110,6 +110,37 @@ func flagSet(cfg *config, stderr io.Writer) (*flag.FlagSet, func() error) {
 }
 
 var errVersion = errors.New("version")
+
+// typeFlag reads --type: a kind for every diagram, or ID=KIND for one. It may
+// be repeated, once for the whole file and once per diagram.
+type typeFlag struct{ opt *diakempt.Options }
+
+func (f *typeFlag) String() string {
+	if f.opt == nil {
+		return ""
+	}
+	return f.opt.Kind
+}
+
+func (f *typeFlag) Set(v string) error {
+	i := strings.LastIndex(v, "=")
+	if i < 0 {
+		if f.opt.Kind != "" && f.opt.Kind != v {
+			return fmt.Errorf("every diagram already has type %s", f.opt.Kind)
+		}
+		f.opt.Kind = v
+		return nil
+	}
+	ref, kind := strings.TrimSpace(v[:i]), strings.TrimSpace(v[i+1:])
+	if f.opt.DiagramKinds == nil {
+		f.opt.DiagramKinds = map[string]string{}
+	}
+	if old, ok := f.opt.DiagramKinds[ref]; ok && old != kind {
+		return fmt.Errorf("diagram %s already has type %s", ref, old)
+	}
+	f.opt.DiagramKinds[ref] = kind
+	return nil
+}
 
 // parseArgs accepts flags before, between and after file names; "--" ends
 // flags.

@@ -2,7 +2,9 @@ package diakempt
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 )
 
 // Level sets how far diakempt may change a layout; see docs/adr/0003.
@@ -88,6 +90,10 @@ type Options struct {
 	Level Level
 	// Kind forces the kind of every diagram in the file; empty detects it.
 	Kind string
+	// DiagramKinds forces the kind of single diagrams, keyed by diagram
+	// identifier: page and index, such as Page-1 #2, optionally followed by
+	// the quoted name, such as Page-1 #2 "Login". It wins over Kind.
+	DiagramKinds map[string]string
 	// Ops switches single operations on (true) or off (false), overriding Level.
 	Ops map[string]bool
 	// Values overrides Params by name.
@@ -105,6 +111,14 @@ func (o Options) Validate() error {
 	}
 	if o.Kind != "" && !contains(Kinds, o.Kind) {
 		return fmt.Errorf("unknown type %q (want one of %v)", o.Kind, Kinds)
+	}
+	for _, ref := range sortedKeys(o.DiagramKinds) {
+		if _, _, _, ok := parseRef(ref); !ok {
+			return fmt.Errorf("diagram %q is not an identifier such as Page-1 #2 or Page-1 #2 \"Login\"", ref)
+		}
+		if k := o.DiagramKinds[ref]; !contains(Kinds, k) {
+			return fmt.Errorf("unknown type %q for diagram %s (want one of %v)", k, ref, Kinds)
+		}
 	}
 	for name := range o.Ops {
 		if _, ok := opByName(name); !ok {
@@ -128,6 +142,47 @@ func (o Options) level() Level {
 		return Normal
 	}
 	return o.Level
+}
+
+// kindFor returns the kind a diagram is forced to, or "" to detect it.
+func (o Options) kindFor(page, index int, name string) string {
+	for _, ref := range sortedKeys(o.DiagramKinds) {
+		if refMatches(ref, page, index, name) {
+			return o.DiagramKinds[ref]
+		}
+	}
+	return o.Kind
+}
+
+var refPattern = regexp.MustCompile(`^Page-([1-9][0-9]*) #([1-9][0-9]*)(?: (".*"))?$`)
+
+// parseRef reads a diagram identifier as the report prints it: one-based page
+// and index, and the quoted name when it has one ("" when the reference
+// leaves it out).
+func parseRef(ref string) (page, index int, name string, ok bool) {
+	m := refPattern.FindStringSubmatch(ref)
+	if m == nil {
+		return 0, 0, "", false
+	}
+	page, _ = strconv.Atoi(m[1])
+	index, _ = strconv.Atoi(m[2])
+	if m[3] != "" {
+		var err error
+		if name, err = strconv.Unquote(m[3]); err != nil {
+			return 0, 0, "", false
+		}
+	}
+	return page - 1, index - 1, name, true
+}
+
+// refMatches reports whether a reference names the diagram at a zero-based
+// page and index with a name. A reference without a name matches any name.
+func refMatches(ref string, page, index int, name string) bool {
+	p, i, n, ok := parseRef(ref)
+	if !ok || p != page || i != index {
+		return false
+	}
+	return n == "" || n == name
 }
 
 // enabled reports whether an operation runs at level lv under these options.

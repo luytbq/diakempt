@@ -66,8 +66,29 @@ func Tidy(data []byte, opt Options) (Result, error) {
 		}
 		merged.into(&rep)
 	}
+	rep.Issues = append(rep.Issues, unmatchedKinds(opt, rep.Diagrams)...)
 	rep.Snap.Ambiguous = countCode(rep.Issues, "snap.ambiguous")
 	return Result{Output: d.Bytes(), Report: rep}, nil
+}
+
+// unmatchedKinds warns about each diagram a kind was forced on that the file
+// does not hold, most likely a mistyped identifier.
+func unmatchedKinds(opt Options, diagrams []report.Diagram) []issue.Issue {
+	var out []issue.Issue
+	for _, ref := range sortedKeys(opt.DiagramKinds) {
+		found := false
+		for _, d := range diagrams {
+			if refMatches(ref, d.Page, d.Index, d.Name) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			out = append(out, issue.New(issue.Warning, "type.no_diagram", -1, nil,
+				"no diagram %s to treat as %s", ref, opt.DiagramKinds[ref]))
+		}
+	}
+	return out
 }
 
 // maxPasses bounds the passes over one page.
@@ -200,8 +221,8 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 		Kind:    det.Kind, Confidence: det.Confidence, Signals: det.Signals,
 		Level: string(lv), Applied: "none",
 	}
-	if opt.Kind != "" {
-		dr.Kind, dr.Forced, dr.Confidence = opt.Kind, true, ""
+	if k := opt.kindFor(sd.Page, sd.Index, sd.Name); k != "" {
+		dr.Kind, dr.Forced, dr.Confidence = k, true, ""
 	}
 	orig := w.Save()
 	dr.Before = w.Measure()
