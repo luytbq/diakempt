@@ -8,6 +8,7 @@
 package classes
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -25,11 +26,6 @@ const (
 	gapY   = 90
 	sweeps = 6 // ordering passes
 )
-
-// Unsupported explains why a diagram cannot be laid out as a class diagram.
-type Unsupported struct{ Reason string }
-
-func (u *Unsupported) Error() string { return u.Reason }
 
 // relation is how a wire constrains the layout.
 type relation int
@@ -74,22 +70,22 @@ func collect(d *tidy.Diagram, noun string, classify func(*tidy.Wire) *link) ([]*
 	var nodes []*tidy.Node
 	for _, n := range d.Nodes {
 		if n.Container {
-			return nil, nil, &Unsupported{noun + " inside a container"}
+			return nil, nil, errors.New(noun + " inside a container")
 		}
 		if !n.Text {
 			nodes = append(nodes, n)
 		}
 	}
 	if len(nodes) < 2 {
-		return nil, nil, &Unsupported{"fewer than two " + noun}
+		return nil, nil, errors.New("fewer than two " + noun)
 	}
 	var links []*link
 	for _, w := range d.Wires {
 		if w.Src == nil || w.Dst == nil {
-			return nil, nil, &Unsupported{fmt.Sprintf("wire %s has a free end", w.V.Cell.ID)}
+			return nil, nil, fmt.Errorf("wire %s has a free end", w.V.Cell.ID)
 		}
 		if w.Src.Text || w.Dst.Text {
-			return nil, nil, &Unsupported{fmt.Sprintf("wire %s ends on a text", w.V.Cell.ID)}
+			return nil, nil, fmt.Errorf("wire %s ends on a text", w.V.Cell.ID)
 		}
 		links = append(links, classify(w))
 	}

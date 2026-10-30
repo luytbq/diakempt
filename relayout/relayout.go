@@ -52,15 +52,6 @@ type edge struct {
 	id       string
 }
 
-// Unsupported explains why a diagram cannot be laid out by the engine.
-type Unsupported struct{ Reason string }
-
-func (u *Unsupported) Error() string { return u.Reason }
-
-func unsupported(format string, args ...any) error {
-	return &Unsupported{Reason: fmt.Sprintf(format, args...)}
-}
-
 // noWrap is the engine's widest label wrap width.
 const noWrap = 2000
 
@@ -88,11 +79,11 @@ func Build(sd *segment.Diagram, withLanes bool) (*Plan, error) {
 	for _, w := range sd.Wires {
 		switch {
 		case w.Src == nil || w.Dst == nil:
-			return nil, unsupported("wire %s has a free end", w.Cell.ID)
+			return nil, fmt.Errorf("wire %s has a free end", w.Cell.ID)
 		case w.Src.Container || w.Dst.Container:
-			return nil, unsupported("wire %s ends on a container", w.Cell.ID)
+			return nil, fmt.Errorf("wire %s ends on a container", w.Cell.ID)
 		case w.Src == w.Dst:
-			return nil, unsupported("wire %s loops back to its own shape", w.Cell.ID)
+			return nil, fmt.Errorf("wire %s loops back to its own shape", w.Cell.ID)
 		}
 		e := &edge{w: w, src: w.Src, dst: w.Dst}
 		end := w.Style.Value("endArrow", "classic") != "none"
@@ -146,7 +137,7 @@ func Build(sd *segment.Diagram, withLanes bool) (*Plan, error) {
 func (p *Plan) findLanes(containers, leaves []*view.Node, withLanes bool) error {
 	if !withLanes {
 		if len(containers) > 0 {
-			return unsupported("a flowchart inside containers")
+			return fmt.Errorf("a flowchart inside containers")
 		}
 		return nil
 	}
@@ -162,7 +153,7 @@ func (p *Plan) findLanes(containers, leaves []*view.Node, withLanes bool) error 
 		}
 	}
 	if len(p.laneOrder) == 0 {
-		return unsupported("no lanes holding shapes")
+		return fmt.Errorf("no lanes holding shapes")
 	}
 	pool := p.laneOrder[0].Parent
 	// Empty lanes of the same pool are lanes too.
@@ -175,11 +166,11 @@ func (p *Plan) findLanes(containers, leaves []*view.Node, withLanes bool) error 
 	}
 	for _, l := range p.laneOrder {
 		if l.Parent != pool {
-			return unsupported("lanes in different pools")
+			return fmt.Errorf("lanes in different pools")
 		}
 		for _, ch := range l.Children {
 			if ch.Container {
-				return unsupported("a container inside lane %s", l.ID)
+				return fmt.Errorf("a container inside lane %s", l.ID)
 			}
 		}
 	}
@@ -189,16 +180,16 @@ func (p *Plan) findLanes(containers, leaves []*view.Node, withLanes bool) error 
 			isLane = isLane || l == c
 		}
 		if !isLane && c != pool {
-			return unsupported("container %s is neither a lane nor their pool", c.ID)
+			return fmt.Errorf("container %s is neither a lane nor their pool", c.ID)
 		}
 	}
 	if pool != nil && pool.Parent != nil {
-		return unsupported("the pool sits inside another container")
+		return fmt.Errorf("the pool sits inside another container")
 	}
 	p.pool = pool
 	for _, n := range leaves {
 		if n.Parent == nil {
-			return unsupported("shape %s is outside every lane", n.ID)
+			return fmt.Errorf("shape %s is outside every lane", n.ID)
 		}
 	}
 	// Lanes side by side read left to right; stacked lanes top to bottom.
@@ -428,7 +419,7 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 			}
 		}
 		if best == nil {
-			return unsupported("shape %s has no wire and nothing to stand beside", n.ID)
+			return fmt.Errorf("shape %s has no wire and nothing to stand beside", n.ID)
 		}
 		attached[best] = append(attached[best], n)
 		attachTo[n] = best
@@ -498,7 +489,7 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 	}
 	for _, is := range validate.Validate(p.Rows) {
 		if is.Level == model.LevelError {
-			return unsupported("the diagram does not make a valid flow table: %s", is.Msg)
+			return fmt.Errorf("the diagram does not make a valid flow table: %s", is.Msg)
 		}
 	}
 	return nil
@@ -607,7 +598,7 @@ func (p *Plan) Lay(tm *text.Measure) (layout.Result, error) {
 	}
 	for _, f := range out.Findings {
 		if f.Level == "error" {
-			return layout.Result{}, unsupported("the engine's self-check failed: %s", f.Msg)
+			return layout.Result{}, fmt.Errorf("the engine's self-check failed: %s", f.Msg)
 		}
 	}
 	return out.Result, nil

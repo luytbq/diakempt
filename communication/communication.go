@@ -7,6 +7,7 @@
 package communication
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -25,12 +26,6 @@ const (
 	loopHalf = 20 // half the width of a self link
 	hubSize  = 3  // neighbors a hub may have before it gets columns on both sides
 )
-
-// Unsupported explains why a diagram cannot be laid out as a communication
-// diagram.
-type Unsupported struct{ Reason string }
-
-func (u *Unsupported) Error() string { return u.Reason }
 
 // less orders message numbers as the messages are sent: 1 < 1.1 < 1.2 < 2.
 func less(a, b []int) bool {
@@ -55,7 +50,7 @@ type link struct {
 func Layout(d *tidy.Diagram) error {
 	for _, n := range d.Nodes {
 		if n.Container {
-			return &Unsupported{fmt.Sprintf("container %s in a communication diagram", n.V.ID)}
+			return fmt.Errorf("container %s in a communication diagram", n.V.ID)
 		}
 	}
 	return layout(d, true)
@@ -88,16 +83,16 @@ func layout(d *tidy.Diagram, objects bool) error {
 		}
 	}
 	if len(nodes) < 2 {
-		return &Unsupported{"fewer than two objects"}
+		return errors.New("fewer than two objects")
 	}
 	var links []*link
 	adj := map[*tidy.Node][]*link{}
 	for _, w := range d.Wires {
 		if w.Src == nil || w.Dst == nil {
-			return &Unsupported{fmt.Sprintf("link %s has a free end", w.V.Cell.ID)}
+			return fmt.Errorf("link %s has a free end", w.V.Cell.ID)
 		}
 		if w.Src.Text || w.Dst.Text {
-			return &Unsupported{fmt.Sprintf("link %s ends on a text", w.V.Cell.ID)}
+			return fmt.Errorf("link %s ends on a text", w.V.Cell.ID)
 		}
 		l := &link{w: w, number: detect.MessageNumber(w.V.Text), src: unit[w.Src], dst: unit[w.Dst]}
 		lw, lh := d.TextSize(w.V.Text, w.Style)

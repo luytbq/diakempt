@@ -9,6 +9,7 @@
 package packages
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -25,11 +26,6 @@ const (
 	sweeps  = 4  // ordering passes
 	minHead = 30 // a package's title, at least
 )
-
-// Unsupported explains why a diagram cannot be laid out as a package diagram.
-type Unsupported struct{ Reason string }
-
-func (u *Unsupported) Error() string { return u.Reason }
 
 // block is a shape and, for a package holding shapes, its layout.
 type block struct {
@@ -65,21 +61,21 @@ func Layout(d *tidy.Diagram) error {
 			if pb := of[n.Parent]; pb != nil {
 				p = pb
 			} else {
-				return &Unsupported{fmt.Sprintf("shape %s sits in %s, which is not a package", n.V.ID, n.Parent.V.ID)}
+				return fmt.Errorf("shape %s sits in %s, which is not a package", n.V.ID, n.Parent.V.ID)
 			}
 		}
 		b.parent = p
 		p.kids = append(p.kids, b)
 	}
 	if len(root.kids) == 0 {
-		return &Unsupported{"no package"}
+		return errors.New("no package")
 	}
 	for _, w := range d.Wires {
 		if w.Src == nil || w.Dst == nil {
-			return &Unsupported{fmt.Sprintf("dependency %s has a free end", w.V.Cell.ID)}
+			return fmt.Errorf("dependency %s has a free end", w.V.Cell.ID)
 		}
 		if of[w.Src] == nil || of[w.Dst] == nil {
-			return &Unsupported{fmt.Sprintf("dependency %s ends on a text", w.V.Cell.ID)}
+			return fmt.Errorf("dependency %s ends on a text", w.V.Cell.ID)
 		}
 	}
 	// Rows: the diagram keeps the rows it was drawn in; a package ranks what

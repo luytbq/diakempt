@@ -1,6 +1,7 @@
 package sequence
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -67,17 +68,17 @@ func layoutHand(d *tidy.Diagram) error {
 			continue
 		}
 		if (w.Src != nil && of[w.Src] == nil) || (w.Dst != nil && of[w.Dst] == nil) {
-			return &Unsupported{fmt.Sprintf("message %s is attached to a shape that is not a lifeline head", w.V.Cell.ID)}
+			return fmt.Errorf("message %s is attached to a shape that is not a lifeline head", w.V.Cell.ID)
 		}
 		if w.Src != nil || w.Dst != nil {
-			return &Unsupported{fmt.Sprintf("message %s is attached to a lifeline head", w.V.Cell.ID)}
+			return fmt.Errorf("message %s is attached to a lifeline head", w.V.Cell.ID)
 		}
 		src, dst := on(w, true), on(w, false)
 		if src == nil || dst == nil {
-			return &Unsupported{fmt.Sprintf("message %s does not join two lifelines", w.V.Cell.ID)}
+			return fmt.Errorf("message %s does not join two lifelines", w.V.Cell.ID)
 		}
 		if src == dst && len(w.Points) == 0 {
-			return &Unsupported{fmt.Sprintf("message %s starts and ends at the same point", w.V.Cell.ID)}
+			return fmt.Errorf("message %s starts and ends at the same point", w.V.Cell.ID)
 		}
 		msgs = append(msgs, &message{w: w, src: src.head, dst: dst.head, self: src == dst, origY: rowOf(w), doc: i})
 	}
@@ -186,20 +187,20 @@ func participants(d *tidy.Diagram) ([]*participant, error) {
 			p.srcTop = w.SrcPoint.Y <= w.DstPoint.Y
 		}
 		if p.head == nil {
-			return nil, &Unsupported{fmt.Sprintf("lifeline %s hangs from no shape", w.V.Cell.ID)}
+			return nil, fmt.Errorf("lifeline %s hangs from no shape", w.V.Cell.ID)
 		}
 		if other := taken[p.head]; other != nil {
-			return nil, &Unsupported{fmt.Sprintf("lifelines %s and %s hang from one shape", other.V.Cell.ID, w.V.Cell.ID)}
+			return nil, fmt.Errorf("lifelines %s and %s hang from one shape", other.V.Cell.ID, w.V.Cell.ID)
 		}
 		taken[p.head] = w
 		parts = append(parts, p)
 	}
 	if len(parts) < 2 {
-		return nil, &Unsupported{"fewer than two lifelines"}
+		return nil, errors.New("fewer than two lifelines")
 	}
 	for _, n := range d.Nodes {
 		if n.Container {
-			return nil, &Unsupported{fmt.Sprintf("container %s in a hand-drawn sequence", n.V.ID)}
+			return nil, fmt.Errorf("container %s in a hand-drawn sequence", n.V.ID)
 		}
 	}
 	return parts, nil

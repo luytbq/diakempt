@@ -8,6 +8,7 @@
 package sequence
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -32,11 +33,6 @@ const (
 	footRoom    = 10 // more room below a message where a frame closes
 	frameMargin = 60 // beside the outermost lifeline in a frame
 )
-
-// Unsupported explains why a diagram cannot be laid out as a sequence.
-type Unsupported struct{ Reason string }
-
-func (u *Unsupported) Error() string { return u.Reason }
 
 type message struct {
 	w        *tidy.Wire
@@ -94,11 +90,11 @@ func Layout(d *tidy.Diagram) error {
 		return layoutHand(d)
 	}
 	if len(lifelines) < 2 {
-		return &Unsupported{"fewer than two UML lifelines"}
+		return errors.New("fewer than two UML lifelines")
 	}
 	for _, n := range d.Nodes {
 		if n.Container && n.V.Shape != "umlLifeline" {
-			return &Unsupported{fmt.Sprintf("container %s is not a lifeline", n.V.ID)}
+			return fmt.Errorf("container %s is not a lifeline", n.V.ID)
 		}
 	}
 	var frames []*tidy.Node
@@ -139,10 +135,10 @@ func Layout(d *tidy.Diagram) error {
 				items = append(items, &item{sep: w, frame: f, origY: rowOf(w), doc: i})
 				continue
 			}
-			return &Unsupported{fmt.Sprintf("message %s does not touch a lifeline", w.V.Cell.ID)}
+			return fmt.Errorf("message %s does not touch a lifeline", w.V.Cell.ID)
 		}
 		if (src == nil && sg == nil) || (dst == nil && dg == nil) {
-			return &Unsupported{fmt.Sprintf("message %s has an end without a position", w.V.Cell.ID)}
+			return fmt.Errorf("message %s has an end without a position", w.V.Cell.ID)
 		}
 		for _, g := range []*gate{sg, dg} {
 			if g == nil {
@@ -150,7 +146,7 @@ func Layout(d *tidy.Diagram) error {
 			}
 			if g.dot != nil {
 				if g.dot.Container || dots[g.dot] {
-					return &Unsupported{fmt.Sprintf("message %s is attached to %s, which is not on a lifeline", w.V.Cell.ID, g.dot.V.ID)}
+					return fmt.Errorf("message %s is attached to %s, which is not on a lifeline", w.V.Cell.ID, g.dot.V.ID)
 				}
 				dots[g.dot] = true
 			}
@@ -158,7 +154,7 @@ func Layout(d *tidy.Diagram) error {
 		}
 		self := src != nil && dst != nil && lifeline(src) == lifeline(dst)
 		if self && len(w.Points) == 0 && w.Src == nil && w.Dst == nil {
-			return &Unsupported{fmt.Sprintf("message %s starts and ends at the same point", w.V.Cell.ID)}
+			return fmt.Errorf("message %s starts and ends at the same point", w.V.Cell.ID)
 		}
 		m := &message{w: w, src: lifeline(src), dst: lifeline(dst), srcGate: sg, dstGate: dg, self: self, origY: rowOf(w), doc: i}
 		items = append(items, &item{msg: m, origY: m.origY, doc: i})

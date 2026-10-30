@@ -7,6 +7,7 @@
 package usecase
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -31,11 +32,6 @@ const (
 	sweeps      = 8
 )
 
-// Unsupported explains why a diagram cannot be laid out as a use case diagram.
-type Unsupported struct{ Reason string }
-
-func (u *Unsupported) Error() string { return u.Reason }
-
 type actor struct {
 	n     *tidy.Node
 	right bool
@@ -53,7 +49,7 @@ func Layout(d *tidy.Diagram) error {
 	for _, n := range d.Nodes {
 		switch {
 		case n.Container:
-			return &Unsupported{fmt.Sprintf("container %s in a use case diagram", n.V.ID)}
+			return fmt.Errorf("container %s in a use case diagram", n.V.ID)
 		case n.V.Shape == "umlActor":
 			actors = append(actors, &actor{n: n})
 		case detect.IsUseCase(n.V):
@@ -61,15 +57,15 @@ func Layout(d *tidy.Diagram) error {
 		case n.Overlay && boundary == nil:
 			boundary = n
 		case n.Overlay:
-			return &Unsupported{"more than one system boundary"}
+			return errors.New("more than one system boundary")
 		case n.Text || n.V.Shape == "note":
 			others = append(others, n)
 		default:
-			return &Unsupported{fmt.Sprintf("shape %s is neither an actor nor a use case", n.V.ID)}
+			return fmt.Errorf("shape %s is neither an actor nor a use case", n.V.ID)
 		}
 	}
 	if len(cases) == 0 || len(actors) == 0 {
-		return &Unsupported{"no actor or no use case"}
+		return errors.New("no actor or no use case")
 	}
 	isCase := map[*tidy.Node]bool{}
 	for _, c := range cases {
@@ -87,11 +83,11 @@ func Layout(d *tidy.Diagram) error {
 		}
 		wires = append(wires, w)
 		if w.Src == nil || w.Dst == nil {
-			return &Unsupported{fmt.Sprintf("wire %s has a free end", w.V.Cell.ID)}
+			return fmt.Errorf("wire %s has a free end", w.V.Cell.ID)
 		}
 		for _, n := range []*tidy.Node{w.Src, w.Dst} {
 			if !isCase[n] && of[n] == nil {
-				return &Unsupported{fmt.Sprintf("wire %s ends on %s, which is neither an actor nor a use case", w.V.Cell.ID, n.V.ID)}
+				return fmt.Errorf("wire %s ends on %s, which is neither an actor nor a use case", w.V.Cell.ID, n.V.ID)
 			}
 		}
 	}

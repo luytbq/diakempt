@@ -206,7 +206,37 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 	orig := w.Save()
 	dr.Before = w.Measure()
 	dr.After = dr.Before
-	// Kinds with an optimizer of their own that works on the working copy.
+	for _, a := range attempts(dr.Kind, lv, opt, tm) {
+		if !a.try(w, &dr, opt) {
+			w.Restore(orig)
+			continue
+		}
+		if w.Changed() {
+			w.Patch()
+			return dr, true
+		}
+		return unchanged(dr), false
+	}
+	return dr, false
+}
+
+// An attempt is one way to lay out a diagram. A diagram keeps the first
+// attempt whose result is not worse than the original.
+type attempt struct {
+	// op names a layout of its own; empty for the general operations of a
+	// level.
+	op string
+	at Level
+	// lay changes the working copy. It returns the detail the report gives a
+	// kept layout, or an error saying why it cannot lay out this diagram.
+	lay func(w *tidy.Diagram, log *tidy.Log) (string, error)
+}
+
+// attempts lists, in the order they are tried, the ways a diagram of a kind
+// may be laid out: the kind's own optimizer, then the engine, then the
+// general operations of each level from the requested one down to safe.
+func attempts(kind string, lv Level, opt Options, tm *text.Measure) []attempt {
+	var out []attempt
 	for _, k := range []struct {
 		kind, op, as string
 		lay          func(*tidy.Diagram) error
@@ -219,112 +249,93 @@ func tidyDiagram(sd *segment.Diagram, rest []geom.Rect, tm *text.Measure, lv Lev
 		{detect.Package, "pkglayout", "a package diagram", packages.Layout},
 		{detect.Deploy, "deploylayout", "a deployment diagram", communication.LayoutDeployment},
 	} {
-		if dr.Kind != k.kind || !opt.enabled(k.op, lv) {
-			continue
-		}
-		if err := k.lay(w); err != nil {
-			dr.StepDowns = append(dr.StepDowns, k.op+" not possible: "+err.Error())
-			w.Restore(orig)
-		} else {
-			after := w.Measure()
-			if worse(after, dr.Before) && !opt.Force {
-				dr.StepDowns = append(dr.StepDowns, fmt.Sprintf("%s scored %.1f against %.1f before", k.op, after.Score, dr.Before.Score))
-				w.Restore(orig)
-			} else {
-				// The layout moved the wires the labels sit on, so settle them
-				// on the geometry that is kept.
-				after, log := settleLabels(w, after, lv, opt, k.op)
-				dr.Applied, dr.After = string(lv), after
-				dr.Operations = log.Ops(opNames())
-				dr.Details = append([]report.Detail{{Op: k.op, Msg: "laid out as " + k.as}}, log.Details...)
-				if w.Changed() {
-					w.Patch()
-					return dr, true
-				}
-				return unchanged(dr), false
-			}
+		if kind == k.kind && opt.enabled(k.op, lv) {
+			out = append(out, attempt{op: k.op, at: lv, lay: func(w *tidy.Diagram, _ *tidy.Log) (string, error) {
+				return "laid out as " + k.as, k.lay(w)
+			}})
 		}
 	}
-	flow := (dr.Kind == detect.Flowchart || dr.Kind == detect.Swimlane || dr.Kind == detect.State) && opt.enabled("flowlayout", lv)
-	free := dr.Kind == detect.Unknown && opt.enabled("relayout", lv)
+	flow := (kind == detect.Flowchart || kind == detect.Swimlane || kind == detect.State) && opt.enabled("flowlayout", lv)
+	free := kind == detect.Unknown && opt.enabled("relayout", lv)
 	if flow || free {
 		op := "flowlayout"
-		withLanes := dr.Kind == detect.Swimlane
 		if free {
 			op = "relayout"
-			withLanes = hasLanes(sd)
 		}
-		reason := ""
-		plan, err := relayout.Run(w, sd, withLanes, tm)
-		if err != nil {
-			reason = op + " not possible: " + err.Error()
-		} else {
-			after := w.Measure()
-			if worse(after, dr.Before) && !opt.Force {
-				reason = fmt.Sprintf("%s scored %.1f against %.1f before", op, after.Score, dr.Before.Score)
-			} else {
-				after, log := settleLabels(w, after, lv, opt, op)
-				dr.Applied = string(lv)
-				dr.After = after
-				dr.Operations = log.Ops(opNames())
-				as := dr.Kind
-				if as == detect.State {
-					as = "state machine"
-				}
-				if free {
-					as = "flowchart"
-					if withLanes {
-						as = "swimlane"
-					}
-				}
-				dr.Details = append([]report.Detail{{Op: op, Msg: fmt.Sprintf("laid out as a %s, direction %s", as, plan.Dir)}}, log.Details...)
-				if w.Changed() {
-					w.Patch()
-					return dr, true
-				}
-				return unchanged(dr), false
+		out = append(out, attempt{op: op, at: lv, lay: func(w *tidy.Diagram, _ *tidy.Log) (string, error) {
+			withLanes := kind == detect.Swimlane
+			if free {
+				withLanes = hasLanes(w.Seg)
 			}
-		}
-		dr.StepDowns = append(dr.StepDowns, reason)
-		w.Restore(orig)
+			plan, err := relayout.Run(w, w.Seg, withLanes, tm)
+			if err != nil {
+				return "", err
+			}
+			as := kind
+			if as == detect.State {
+				as = "state machine"
+			}
+			if free {
+				as = "flowchart"
+				if withLanes {
+					as = "swimlane"
+				}
+			}
+			return fmt.Sprintf("laid out as a %s, direction %s", as, plan.Dir), nil
+		}})
 	}
 	// A flow the engine could not improve gets only the safe operations: the
 	// shape operations of normal are for diagrams no optimizer understands.
 	top := lv.rank()
-	if (dr.Kind == detect.Flowchart || dr.Kind == detect.Swimlane) && top > Safe.rank() {
+	if (kind == detect.Flowchart || kind == detect.Swimlane) && top > Safe.rank() {
 		top = Safe.rank()
 	}
 	for rank := top; rank >= 0; rank-- {
 		at := Levels[rank]
-		w.Restore(orig)
-		log := &tidy.Log{}
-		runLevel(w, at, opt, log)
-		after := w.Measure()
-		reason := ""
-		if at != Aggressive {
-			if err := w.OrderKept(); err != nil {
-				reason = fmt.Sprintf("%s broke relative order (%v)", at, err)
-			}
-		}
-		if reason == "" && worse(after, dr.Before) && !opt.Force {
-			reason = fmt.Sprintf("%s scored %.1f against %.1f before", at, after.Score, dr.Before.Score)
-		}
-		if reason != "" {
-			dr.StepDowns = append(dr.StepDowns, reason)
-			continue
-		}
-		dr.Applied = string(at)
-		dr.After = after
-		dr.Operations = log.Ops(opNames())
-		dr.Details = log.Details
-		if w.Changed() {
-			w.Patch()
-			return dr, true
-		}
-		return unchanged(dr), false
+		out = append(out, attempt{at: at, lay: func(w *tidy.Diagram, log *tidy.Log) (string, error) {
+			runLevel(w, at, opt, log)
+			return "", nil
+		}})
 	}
-	w.Restore(orig)
-	return dr, false
+	return out
+}
+
+// try runs the attempt on the working copy and judges the result. A kept
+// result is recorded in dr; a rejected one adds its step down reason and
+// leaves the working copy for the caller to restore.
+func (a attempt) try(w *tidy.Diagram, dr *report.Diagram, opt Options) bool {
+	name := a.op
+	if name == "" {
+		name = string(a.at)
+	}
+	log := &tidy.Log{}
+	msg, err := a.lay(w, log)
+	if err != nil {
+		dr.StepDowns = append(dr.StepDowns, name+" not possible: "+err.Error())
+		return false
+	}
+	after := w.Measure()
+	if a.op == "" && a.at != Aggressive {
+		if err := w.OrderKept(); err != nil {
+			dr.StepDowns = append(dr.StepDowns, fmt.Sprintf("%s broke relative order (%v)", a.at, err))
+			return false
+		}
+	}
+	if worse(after, dr.Before) && !opt.Force {
+		dr.StepDowns = append(dr.StepDowns, fmt.Sprintf("%s scored %.1f against %.1f before", name, after.Score, dr.Before.Score))
+		return false
+	}
+	dr.Details = nil
+	if a.op != "" {
+		// The layout moved the wires the labels sit on, so settle them on the
+		// geometry that is kept.
+		after, log = settleLabels(w, after, a.at, opt, a.op)
+		dr.Details = []report.Detail{{Op: a.op, Msg: msg}}
+	}
+	dr.Applied, dr.After = string(a.at), after
+	dr.Operations = log.Ops(opNames())
+	dr.Details = append(dr.Details, log.Details...)
+	return true
 }
 
 // settleLabels runs Labels on a layout that was just accepted. Labels
