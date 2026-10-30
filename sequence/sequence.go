@@ -265,7 +265,7 @@ func Layout(d *tidy.Diagram) error {
 	}
 	routeMessages(msgs, step)
 	placeMessageLabels(d, msgs, lifelines, index)
-	keepCornerFree(d)
+	d.KeepCorner()
 	return nil
 }
 

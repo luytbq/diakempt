@@ -160,7 +160,7 @@ func Split(v *view.View) Page {
 			if m == n || m.TextOnly || !(wired[m] || wiredInside(m, wired)) {
 				continue
 			}
-			if d := gap(n.Box, m.Box); d < bd {
+			if d := n.Box.Gap(m.Box); d < bd {
 				best, bd = m, d
 			}
 		}
@@ -380,13 +380,6 @@ func short(s string) string {
 		return string(r[:40]) + "..."
 	}
 	return s
-}
-
-// gap returns the distance between two boxes, zero when they touch or overlap.
-func gap(a, b geom.Rect) float64 {
-	dx := math.Max(0, math.Max(a.X-b.Right(), b.X-a.Right()))
-	dy := math.Max(0, math.Max(a.Y-b.Bottom(), b.Y-a.Bottom()))
-	return math.Hypot(dx, dy)
 }
 
 type union struct{ parent []int }

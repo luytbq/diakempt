@@ -117,10 +117,6 @@ func Layout(d *tidy.Diagram) error {
 	for _, n := range d.Nodes {
 		origin.X, origin.Y = math.Min(origin.X, n.Box.X), math.Min(origin.Y, n.Box.Y)
 	}
-	orig := map[*tidy.Node]geom.Rect{}
-	for _, n := range d.Nodes {
-		orig[n] = n.Box
-	}
 	for s := 0; s <= sweeps; s++ {
 		size(root)
 		stretch(root)
@@ -130,26 +126,13 @@ func Layout(d *tidy.Diagram) error {
 		}
 	}
 	// Texts keep their place relative to the shape they belong to.
-	for _, t := range texts {
-		host := t.Parent
-		if host == nil {
-			var best *tidy.Node
-			bd := math.Inf(1)
-			for n, b := range orig {
-				if of[n] == nil {
-					continue
-				}
-				if dd := dist(t.Orig, b); dd < bd {
-					best, bd = n, dd
-				}
-			}
-			host = best
-		}
-		if host != nil {
-			o := orig[host]
-			t.Box = t.Box.Move(geom.Point{X: host.Box.X - o.X, Y: host.Box.Y - o.Y})
+	var blocks []*tidy.Node
+	for _, n := range d.Nodes {
+		if of[n] != nil {
+			blocks = append(blocks, n)
 		}
 	}
+	d.Follow(texts, blocks)
 	for _, w := range d.Wires {
 		w.Points = nil
 		d.RouteWire(w)
@@ -384,10 +367,4 @@ func reorder(b *block, wires []*tidy.Wire, of map[*tidy.Node]*block) {
 		}
 		sort.SliceStable(row, func(i, j int) bool { return key[row[i]] < key[row[j]] })
 	}
-}
-
-func dist(a, b geom.Rect) float64 {
-	dx := math.Max(0, math.Max(a.X-b.Right(), b.X-a.Right()))
-	dy := math.Max(0, math.Max(a.Y-b.Bottom(), b.Y-a.Bottom()))
-	return math.Hypot(dx, dy)
 }

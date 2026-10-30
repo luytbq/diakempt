@@ -155,7 +155,7 @@ func layoutHand(d *tidy.Diagram) error {
 		h := nearest(n.Box.Center().X)
 		n.Box = geom.Rect{X: n.Box.X + h.Box.Center().X - origCenter[h], Y: remap(n.Box.Y), W: n.Box.W, H: n.Box.H}
 	}
-	keepCornerFree(d)
+	d.KeepCorner()
 	return nil
 }
 
@@ -245,34 +245,4 @@ func hang(p *participant, bottom float64) {
 		w.SrcPoint = &end
 	}
 	w.Points = nil
-}
-
-// keepCornerFree moves everything, free wire ends included, so the diagram's
-// top-left corner is where it was.
-func keepCornerFree(d *tidy.Diagram) {
-	var was, now geom.Rect
-	for _, n := range d.Nodes {
-		was = was.Union(n.Orig)
-		now = now.Union(n.Box)
-	}
-	by := geom.Point{X: was.X - now.X, Y: was.Y - now.Y}
-	if by == (geom.Point{}) {
-		return
-	}
-	for _, n := range d.Nodes {
-		n.Box = n.Box.Move(by)
-	}
-	for _, w := range d.Wires {
-		for i := range w.Points {
-			w.Points[i] = w.Points[i].Add(by)
-		}
-		if w.SrcPoint != nil {
-			p := w.SrcPoint.Add(by)
-			w.SrcPoint = &p
-		}
-		if w.DstPoint != nil {
-			p := w.DstPoint.Add(by)
-			w.DstPoint = &p
-		}
-	}
 }

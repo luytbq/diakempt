@@ -127,10 +127,6 @@ func Layout(d *tidy.Diagram) error {
 	}
 	byY(cases)
 	sort.SliceStable(actors, func(i, j int) bool { return actors[i].n.Box.Center().Y < actors[j].n.Box.Center().Y })
-	origin := geom.Point{X: math.Inf(1), Y: math.Inf(1)}
-	for _, n := range d.Nodes {
-		origin.X, origin.Y = math.Min(origin.X, n.Box.X), math.Min(origin.Y, n.Box.Y)
-	}
 	top := 0.0
 	if boundary != nil {
 		top = padTop
@@ -251,9 +247,9 @@ func Layout(d *tidy.Diagram) error {
 	for _, n := range others {
 		notesW = math.Max(notesW, n.Box.W+noteGap)
 	}
-	moved := map[*tidy.Node]geom.Point{}
+	var placed []*tidy.Node
 	put := func(n *tidy.Node, c geom.Point) {
-		moved[n] = geom.Point{X: c.X - n.Box.Center().X, Y: c.Y - n.Box.Center().Y}
+		placed = append(placed, n)
 		n.Box = geom.Rect{X: c.X - n.Box.W/2, Y: c.Y - n.Box.H/2, W: n.Box.W, H: n.Box.H}
 	}
 	bottom := 0.0
@@ -275,16 +271,9 @@ func Layout(d *tidy.Diagram) error {
 	// above it.
 	want := map[*tidy.Node]float64{}
 	for _, n := range others {
-		var best *tidy.Node
-		bd := math.Inf(1)
-		for m := range moved {
-			if dd := gap(n.Orig, m.Orig); dd < bd {
-				best, bd = m, dd
-			}
-		}
 		want[n] = n.Box.Y
-		if best != nil {
-			want[n] = n.Box.Y + moved[best].Y
+		if best := tidy.Nearest(n, placed); best != nil {
+			want[n] = n.Box.Y + best.Shift().Y
 		}
 	}
 	sort.SliceStable(others, func(i, j int) bool { return want[others[i]] < want[others[j]] })
@@ -294,15 +283,7 @@ func Layout(d *tidy.Diagram) error {
 		n.Box = geom.Rect{X: x + inner + noteGap, Y: y, W: n.Box.W, H: n.Box.H}
 		below = y + n.Box.H + caseGap
 	}
-	// Keep the diagram's top-left corner.
-	now := geom.Point{X: math.Inf(1), Y: math.Inf(1)}
-	for _, n := range d.Nodes {
-		now.X, now.Y = math.Min(now.X, n.Box.X), math.Min(now.Y, n.Box.Y)
-	}
-	by := geom.Point{X: origin.X - now.X, Y: origin.Y - now.Y}
-	for _, n := range d.Nodes {
-		n.Box = n.Box.Move(by)
-	}
+	d.KeepCorner()
 	route(wires, cases, isCase, of)
 	return nil
 }
@@ -412,11 +393,4 @@ func onWire(w *tidy.Wire) bool {
 		}
 	}
 	return false
-}
-
-// gap returns the distance between two boxes, zero when they touch or overlap.
-func gap(a, b geom.Rect) float64 {
-	dx := math.Max(0, math.Max(a.X-b.Right(), b.X-a.Right()))
-	dy := math.Max(0, math.Max(a.Y-b.Bottom(), b.Y-a.Bottom()))
-	return math.Hypot(dx, dy)
 }

@@ -48,25 +48,17 @@ func LayoutER(d *tidy.Diagram) error {
 			transposeWire(l.w)
 		}
 	}
-	by := keepCorner(d, nodes)
-	for _, l := range own {
-		if !inRest[l] {
-			for i := range l.w.Points {
-				l.w.Points[i] = l.w.Points[i].Add(by)
-			}
-		}
-	}
+	keepCorner(d, nodes)
 	for _, l := range rest {
 		d.RouteWire(l.w)
 	}
 	return nil
 }
 
-// transpose swaps the axes of the nodes' boxes, current and original.
+// transpose swaps the axes of the nodes' boxes.
 func transpose(nodes []*tidy.Node) {
-	flip := func(r geom.Rect) geom.Rect { return geom.Rect{X: r.Y, Y: r.X, W: r.H, H: r.W} }
 	for _, n := range nodes {
-		n.Box, n.Orig = flip(n.Box), flip(n.Orig)
+		n.Box = geom.Rect{X: n.Box.Y, Y: n.Box.X, W: n.Box.H, H: n.Box.W}
 	}
 }
 

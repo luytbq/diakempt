@@ -280,42 +280,19 @@ func layout(d *tidy.Diagram, objects bool) error {
 		}
 		x += width[c] + math.Max(minGapX, gapX[c])
 	}
-	moved := map[*tidy.Node]geom.Point{}
-	origin := geom.Point{X: math.Inf(1), Y: math.Inf(1)}
-	for _, n := range d.Nodes {
-		origin.X, origin.Y = math.Min(origin.X, n.Box.X), math.Min(origin.Y, n.Box.Y)
-	}
+	// What a top-level shape holds moves with it; notes beside the shapes
+	// follow the one they stood nearest.
 	for _, n := range nodes {
-		c := center[n]
-		moved[n] = geom.Point{X: c.X - n.Box.Center().X, Y: c.Y - n.Box.Center().Y}
-		n.Box = geom.Rect{X: c.X - n.Box.W/2, Y: c.Y - n.Box.H/2, W: n.Box.W, H: n.Box.H}
+		d.Move(n, center[n].Sub(n.Box.Center()))
 	}
-	// What a top-level shape holds moves with it.
-	for _, n := range d.Nodes {
-		if u := unit[n]; u != n && !n.Text && !n.Overlay {
-			n.Box = n.Box.Move(moved[u])
-		}
-	}
+	var free []*tidy.Node
 	for _, n := range others {
-		var best *tidy.Node
-		bd := math.Inf(1)
-		for m := range moved {
-			if dd := gap(n.Orig, m.Orig); dd < bd {
-				best, bd = m, dd
-			}
-		}
-		if best != nil {
-			n.Box = n.Box.Move(moved[best])
+		if unit[n] == n {
+			free = append(free, n)
 		}
 	}
-	now := geom.Point{X: math.Inf(1), Y: math.Inf(1)}
-	for _, n := range d.Nodes {
-		now.X, now.Y = math.Min(now.X, n.Box.X), math.Min(now.Y, n.Box.Y)
-	}
-	by := geom.Point{X: origin.X - now.X, Y: origin.Y - now.Y}
-	for _, n := range d.Nodes {
-		n.Box = n.Box.Move(by)
-	}
+	d.Follow(free, nodes)
+	d.KeepCorner()
 	// Links: straight, from the middle of the side of one object facing the
 	// other; a self link loops above its object; one that would still cross
 	// another object goes around it.
@@ -381,11 +358,4 @@ func abs(v int) int {
 		return -v
 	}
 	return v
-}
-
-// gap returns the distance between two boxes, zero when they touch or overlap.
-func gap(a, b geom.Rect) float64 {
-	dx := math.Max(0, math.Max(a.X-b.Right(), b.X-a.Right()))
-	dy := math.Max(0, math.Max(a.Y-b.Bottom(), b.Y-a.Bottom()))
-	return math.Hypot(dx, dy)
 }

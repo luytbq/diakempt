@@ -99,6 +99,13 @@ func (r Rect) Dist(p Point) float64 {
 	return r.DistToOutline(p)
 }
 
+// Gap returns the distance between two boxes, zero when they touch or overlap.
+func (r Rect) Gap(o Rect) float64 {
+	dx := math.Max(0, math.Max(r.X-o.Right(), o.X-r.Right()))
+	dy := math.Max(0, math.Max(r.Y-o.Bottom(), o.Y-r.Bottom()))
+	return math.Hypot(dx, dy)
+}
+
 // Segment is a straight piece of a wire.
 type Segment struct{ A, B Point }
 

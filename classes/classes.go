@@ -58,7 +58,11 @@ func Layout(d *tidy.Diagram) error {
 	layers := order(nodes, links, rank)
 	place(layers, links, rank, gaps(layers, links, rank))
 	keepCorner(d, nodes)
-	for _, l := range route(layers, links, rank) {
+	rest := route(layers, links, rank)
+	for _, l := range rest {
+		l.w.Points = nil
+	}
+	for _, l := range rest {
 		d.RouteWire(l.w)
 	}
 	return nil
@@ -455,39 +459,17 @@ func place(layers [][]*tidy.Node, links []*link, rank map[*tidy.Node]int, gaps [
 	}
 }
 
-// keepCorner moves the laid-out classes so the diagram's top-left corner is
-// where it was, and returns how far it moved them.
-func keepCorner(d *tidy.Diagram, nodes []*tidy.Node) geom.Point {
-	var was, now geom.Rect
-	for _, n := range nodes {
-		was = was.Union(n.Orig)
-		now = now.Union(n.Box)
-	}
-	by := geom.Point{X: was.X - now.X, Y: was.Y - now.Y}
-	for _, n := range nodes {
-		n.Box = n.Box.Move(by)
-	}
+// keepCorner keeps the diagram's top-left corner where it was, with free
+// notes in their place relative to the nearest class.
+func keepCorner(d *tidy.Diagram, nodes []*tidy.Node) {
+	var notes []*tidy.Node
 	for _, n := range d.Nodes {
 		if n.Text {
-			// Free notes keep their place relative to the nearest class.
-			n.Box = n.Box.Move(nearestShift(n, nodes))
+			notes = append(notes, n)
 		}
 	}
-	return by
-}
-
-func nearestShift(t *tidy.Node, nodes []*tidy.Node) geom.Point {
-	var best *tidy.Node
-	bd := math.Inf(1)
-	for _, n := range nodes {
-		if d := t.Orig.Center().Dist(n.Orig.Center()); d < bd {
-			best, bd = n, d
-		}
-	}
-	if best == nil {
-		return geom.Point{}
-	}
-	return geom.Point{X: best.Box.X - best.Orig.X, Y: best.Box.Y - best.Orig.Y}
+	d.Follow(notes, nodes)
+	d.KeepCorner()
 }
 
 // Channel spacing, in pixels: the room above and below the levels in a gap,

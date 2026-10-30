@@ -413,7 +413,7 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 				if m == n || !wired[m] || (sameLane && m.Parent != n.Parent) {
 					continue
 				}
-				if d := gap(n.Box, m.Box); d < bd {
+				if d := n.Box.Gap(m.Box); d < bd {
 					best, bd = m, d
 				}
 			}
@@ -582,12 +582,6 @@ func elementType(n *view.Node, in, out []*edge) string {
 		return "external"
 	}
 	return "task"
-}
-
-func gap(a, b geom.Rect) float64 {
-	dx := math.Max(0, math.Max(a.X-b.Right(), b.X-a.Right()))
-	dy := math.Max(0, math.Max(a.Y-b.Bottom(), b.Y-a.Bottom()))
-	return math.Hypot(dx, dy)
 }
 
 // Lay runs the engine on the plan.
