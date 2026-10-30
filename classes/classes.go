@@ -16,6 +16,7 @@ import (
 
 	"github.com/luytbq/diakempt/detect"
 	"github.com/luytbq/diakempt/geom"
+	"github.com/luytbq/diakempt/rank"
 	"github.com/luytbq/diakempt/tidy"
 )
 
@@ -126,83 +127,37 @@ func classify(w *tidy.Wire) *link {
 // rank below the lowest class it hangs from. Classes with no ranked relation
 // sit in the rank of their median neighbor.
 func ranks(nodes []*tidy.Node, links []*link) map[*tidy.Node]int {
-	below := map[*tidy.Node][]*tidy.Node{}
-	reaches := func(from, to *tidy.Node) bool {
-		seen := map[*tidy.Node]bool{}
-		stack := []*tidy.Node{from}
-		for len(stack) > 0 {
-			n := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			if n == to {
-				return true
-			}
-			if seen[n] {
-				continue
-			}
-			seen[n] = true
-			stack = append(stack, below[n]...)
-		}
-		return false
-	}
 	if !anyRanked(links) {
 		return drawnRanks(nodes)
 	}
-	ranked := map[*tidy.Node]bool{}
+	g := rank.New[*tidy.Node]()
 	for _, rel := range []relation{generalization, whole, uses} {
 		for _, l := range links {
-			if l.rel != rel {
-				continue
-			}
-			if reaches(l.down, l.up) {
+			if l.rel == rel && !g.Add(l.up, l.down) {
 				// It would close a cycle; it stays unranked.
 				l.rel = free
-				continue
 			}
-			below[l.up] = append(below[l.up], l.down)
-			ranked[l.up], ranked[l.down] = true, true
 		}
 	}
-	rank := map[*tidy.Node]int{}
-	var visit func(n *tidy.Node, r int)
-	visit = func(n *tidy.Node, r int) {
-		if old, ok := rank[n]; ok && old >= r {
-			return
-		}
-		rank[n] = r
-		for _, m := range below[n] {
-			visit(m, r+1)
-		}
-	}
-	above := map[*tidy.Node]int{}
-	for _, ms := range below {
-		for _, m := range ms {
-			above[m]++
-		}
-	}
+	r := g.Ranks(nodes)
 	for _, n := range nodes {
-		if ranked[n] && above[n] == 0 {
-			visit(n, 0)
-		}
-	}
-	for _, n := range nodes {
-		if ranked[n] {
+		if g.Ranked(n) {
 			continue
 		}
 		var rs []int
 		for _, l := range links {
-			if o := other(l.w, n); o != nil && ranked[o] {
-				rs = append(rs, rank[o])
+			if o := other(l.w, n); o != nil && g.Ranked(o) {
+				rs = append(rs, r[o])
 			}
 		}
+		r[n] = 0
 		if len(rs) > 0 {
 			sort.Ints(rs)
-			rank[n] = rs[len(rs)/2]
-		} else {
-			rank[n] = 0
+			r[n] = rs[len(rs)/2]
 		}
 	}
 	// Close gaps left by empty ranks.
-	return dense(rank)
+	return dense(r)
 }
 
 // sideRoom is the extra room two neighbors in a rank need for the labels of
@@ -255,37 +210,23 @@ var analysisRanks = map[string]int{"boundary": 0, "control": 1, "entity": 2}
 // analysis stereotype and they are not all the same, those decide; otherwise
 // the rows the classes were drawn in do.
 func drawnRanks(nodes []*tidy.Node) map[*tidy.Node]int {
-	rank := map[*tidy.Node]int{}
+	by := map[*tidy.Node]int{}
 	for _, n := range nodes {
 		r, ok := analysisRanks[detect.Stereotype(n.V.Text)]
 		if !ok {
-			rank = nil
+			by = nil
 			break
 		}
-		rank[n] = r
+		by[n] = r
 	}
 	kinds := map[int]bool{}
-	for _, r := range rank {
+	for _, r := range by {
 		kinds[r] = true
 	}
 	if len(kinds) > 1 {
-		return dense(rank)
+		return dense(by)
 	}
-	rank = map[*tidy.Node]int{}
-	sorted := append([]*tidy.Node(nil), nodes...)
-	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Box.Y < sorted[j].Box.Y })
-	r, bottom := 0, math.Inf(-1)
-	for i, n := range sorted {
-		// A class starting below the middle of the row so far opens a new row.
-		if i > 0 && n.Box.Y > bottom {
-			r++
-		}
-		if i == 0 || n.Box.Y > bottom {
-			bottom = n.Box.Center().Y
-		}
-		rank[n] = r
-	}
-	return rank
+	return rank.Drawn(nodes, func(n *tidy.Node) geom.Rect { return n.Box })
 }
 
 // dense renumbers ranks 0, 1, 2, ... keeping their order.

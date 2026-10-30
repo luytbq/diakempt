@@ -15,6 +15,7 @@ import (
 	"sort"
 
 	"github.com/luytbq/diakempt/geom"
+	"github.com/luytbq/diakempt/rank"
 	"github.com/luytbq/diakempt/tidy"
 )
 
@@ -88,20 +89,20 @@ func Layout(d *tidy.Diagram) error {
 		if len(b.kids) == 0 {
 			return
 		}
-		var rank map[*block]int
+		var rk map[*block]int
 		if b != root {
-			rank = ranked(b.kids, d.Wires, of)
+			rk = ranked(b.kids, d.Wires, of)
 		}
-		if rank == nil {
-			rank = drawnRows(b.kids)
+		if rk == nil {
+			rk = rank.Drawn(b.kids, func(k *block) geom.Rect { return k.n.Box })
 		}
 		top := 0
-		for _, r := range rank {
+		for _, r := range rk {
 			top = max(top, r)
 		}
 		b.rows = make([][]*block, top+1)
 		for _, k := range b.kids {
-			b.rows[rank[k]] = append(b.rows[rank[k]], k)
+			b.rows[rk[k]] = append(b.rows[rk[k]], k)
 		}
 		for _, row := range b.rows {
 			sort.SliceStable(row, func(i, j int) bool { return row[i].n.Box.X < row[j].n.Box.X })
@@ -149,87 +150,23 @@ func ranked(kids []*block, wires []*tidy.Wire, of map[*tidy.Node]*block) map[*bl
 	for _, k := range kids {
 		in[k] = true
 	}
-	below := map[*block][]*block{}
-	any := false
-	reaches := func(from, to *block) bool {
-		seen := map[*block]bool{}
-		stack := []*block{from}
-		for len(stack) > 0 {
-			b := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			if b == to {
-				return true
-			}
-			if !seen[b] {
-				seen[b] = true
-				stack = append(stack, below[b]...)
-			}
-		}
-		return false
-	}
+	g := rank.New[*block]()
 	for _, w := range wires {
-		up, down := of[w.Src], of[w.Dst]
-		if !in[up] || !in[down] || up == down || !realizes(w) {
-			continue
+		up, down := of[w.Dst], of[w.Src]
+		if in[up] && in[down] && up != down && realizes(w) {
+			g.Add(up, down)
 		}
-		up, down = down, up
-		if reaches(down, up) {
-			continue
-		}
-		below[up] = append(below[up], down)
-		any = true
 	}
-	if !any {
+	if g.Empty() {
 		return nil
 	}
-	rank := map[*block]int{}
-	var visit func(b *block, r int)
-	visit = func(b *block, r int) {
-		if old, ok := rank[b]; ok && old >= r {
-			return
-		}
-		rank[b] = r
-		for _, c := range below[b] {
-			visit(c, r+1)
-		}
-	}
-	above := map[*block]int{}
-	for _, cs := range below {
-		for _, c := range cs {
-			above[c]++
-		}
-	}
-	for _, k := range kids {
-		if above[k] == 0 {
-			visit(k, 0)
-		}
-	}
-	return rank
+	return g.Ranks(kids)
 }
 
 // realizes reports a realization or generalization: a hollow triangle at the
 // target, which is drawn above.
 func realizes(w *tidy.Wire) bool {
 	return w.Style.Value("endArrow", "classic") == "block" && w.Style.Value("endFill", "1") == "0"
-}
-
-// drawnRows numbers the rows shapes were drawn in: a shape starting below
-// the middle of the row so far opens a new one.
-func drawnRows(kids []*block) map[*block]int {
-	sorted := append([]*block(nil), kids...)
-	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].n.Box.Y < sorted[j].n.Box.Y })
-	rank := map[*block]int{}
-	r, mid := 0, math.Inf(-1)
-	for i, b := range sorted {
-		if i > 0 && b.n.Box.Y > mid {
-			r++
-		}
-		if i == 0 || b.n.Box.Y > mid {
-			mid = b.n.Box.Center().Y
-		}
-		rank[b] = r
-	}
-	return rank
 }
 
 // head is the room a package needs above what it holds for its title, as

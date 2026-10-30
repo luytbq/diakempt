@@ -75,6 +75,10 @@ a sequence diagram's, never a container.
 ":Class" or "name:Class". **Link** - an undirected wire between objects or
 actors whose label lists the numbered messages sent along it.
 
+**Rank** - a row of a layered layout, counted from the top. A shape hanging
+from others, such as a subclass from its parent, sits one rank below the
+lowest of them; shapes in no such relation keep the rows they were drawn in.
+
 **Trunk** - the shared path the generalizations of one parent class take: up
 from each child to a level in the gap between ranks, across, and into the
 parent from below.
