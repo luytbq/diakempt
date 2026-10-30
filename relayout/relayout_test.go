@@ -45,7 +45,7 @@ func TestFlowcastOutputLaysOutTheSame(t *testing.T) {
 				continue
 			}
 			w := tidy.New(sd, text.Default())
-			plan.Apply(w, r, sd)
+			plan.Apply(w, r)
 			total++
 			ok := true
 			for _, n := range w.Nodes {
@@ -91,7 +91,7 @@ func TestLongLabelsGetRoom(t *testing.T) {
 	}
 	sd := segment.Split(view.Build(d.Pages[0])).Diagrams[0]
 	w := tidy.New(sd, text.Default())
-	if _, err := Run(w, sd, false, text.Default()); err != nil {
+	if _, err := Run(w, false, text.Default()); err != nil {
 		t.Fatal(err)
 	}
 	if m := w.Measure(); m.LabelOverlaps > 0 {
@@ -123,7 +123,7 @@ func TestNoteStaysInItsLane(t *testing.T) {
 	}
 	sd := segment.Split(view.Build(d.Pages[0])).Diagrams[0]
 	w := tidy.New(sd, text.Default())
-	if _, err := Run(w, sd, true, text.Default()); err != nil {
+	if _, err := Run(w, true, text.Default()); err != nil {
 		t.Fatal(err)
 	}
 	for _, n := range w.Nodes {

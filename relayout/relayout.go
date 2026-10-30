@@ -39,6 +39,8 @@ type Plan struct {
 	laneOrder []*view.Node
 	pool      *view.Node
 	cfg       layout.Config
+	// box is where a node stands in the drawing the table is read from.
+	box func(*view.Node) geom.Rect
 	// undirected is set when no wire has a direction, as in networks and mind
 	// maps.
 	undirected bool
@@ -55,10 +57,15 @@ type edge struct {
 // noWrap is the engine's widest label wrap width.
 const noWrap = 2000
 
-// Build writes a diagram as a Flow Table. withLanes selects a swimlane
-// diagram; without it, a flowchart.
+// Build writes a diagram as a Flow Table, reading the shapes where they were
+// drawn. withLanes selects a swimlane diagram; without it, a flowchart.
 func Build(sd *segment.Diagram, withLanes bool) (*Plan, error) {
-	p := &Plan{nodes: map[string]*view.Node{}, edges: map[string]*edge{}, lanes: map[string]*view.Node{}, cfg: layout.DefaultConfig()}
+	return build(sd, withLanes, func(n *view.Node) geom.Rect { return n.Box })
+}
+
+// build writes a diagram as a Flow Table with each shape at box(n).
+func build(sd *segment.Diagram, withLanes bool, box func(*view.Node) geom.Rect) (*Plan, error) {
+	p := &Plan{nodes: map[string]*view.Node{}, edges: map[string]*edge{}, lanes: map[string]*view.Node{}, cfg: layout.DefaultConfig(), box: box}
 	// draw.io never wraps a wire's label: it has no width to wrap to. The
 	// engine must reserve room for it on one line.
 	p.cfg.LabelWrap = noWrap
@@ -102,9 +109,9 @@ func Build(sd *segment.Diagram, withLanes bool) (*Plan, error) {
 	// The direction comes from the wires that have one; a wire with no
 	// arrowhead, or one at each end, then runs the way the flow does.
 	if len(directed) > 0 {
-		p.Dir = direction(directed, p.laneOrder)
+		p.Dir = p.direction(directed, p.laneOrder)
 	} else {
-		p.Dir = direction(edges, p.laneOrder)
+		p.Dir = p.direction(edges, p.laneOrder)
 	}
 	// With no direction at all, wires run away from the best connected shape,
 	// level by level, so the diagram lays out as a tree from its hub. The hub
@@ -124,7 +131,7 @@ func Build(sd *segment.Diagram, withLanes bool) (*Plan, error) {
 			}
 			continue
 		}
-		a, b := e.src.Box.Center(), e.dst.Box.Center()
+		a, b := p.box(e.src).Center(), p.box(e.dst).Center()
 		if p.flow(b) < p.flow(a)-5 || (math.Abs(p.flow(b)-p.flow(a)) <= 5 && p.cross(b) < p.cross(a)) {
 			e.src, e.dst, e.reversed = e.dst, e.src, !e.reversed
 		}
@@ -193,9 +200,9 @@ func (p *Plan) findLanes(containers, leaves []*view.Node, withLanes bool) error 
 		}
 	}
 	// Lanes side by side read left to right; stacked lanes top to bottom.
-	vertical := lanesVertical(p.laneOrder)
+	vertical := p.lanesVertical(p.laneOrder)
 	sort.SliceStable(p.laneOrder, func(i, j int) bool {
-		a, b := p.laneOrder[i].Box, p.laneOrder[j].Box
+		a, b := p.box(p.laneOrder[i]), p.box(p.laneOrder[j])
 		if vertical {
 			return a.X < b.X
 		}
@@ -243,13 +250,13 @@ func bfsDepth(leaves []*view.Node, edges []*edge, p *Plan) map[*view.Node]int {
 }
 
 // lanesVertical reports whether lanes stand side by side as columns.
-func lanesVertical(lanes []*view.Node) bool {
+func (p *Plan) lanesVertical(lanes []*view.Node) bool {
 	if len(lanes) < 2 {
 		return lanes[0].Style.Value("horizontal", "1") != "0"
 	}
 	var minX, maxX, minY, maxY = math.Inf(1), math.Inf(-1), math.Inf(1), math.Inf(-1)
 	for _, l := range lanes {
-		c := l.Box.Center()
+		c := p.box(l).Center()
 		minX, maxX = math.Min(minX, c.X), math.Max(maxX, c.X)
 		minY, maxY = math.Min(minY, c.Y), math.Max(maxY, c.Y)
 	}
@@ -263,16 +270,16 @@ func startSize(n *view.Node) int {
 
 // direction is TD for lanes standing as columns or wires mostly going down, LR
 // for lanes stacked as rows or wires mostly going right.
-func direction(edges []*edge, lanes []*view.Node) string {
+func (p *Plan) direction(edges []*edge, lanes []*view.Node) string {
 	if len(lanes) > 0 {
-		if lanesVertical(lanes) {
+		if p.lanesVertical(lanes) {
 			return layout.DirTD
 		}
 		return layout.DirLR
 	}
 	down, right := 0, 0
 	for _, e := range edges {
-		a, b := e.src.Box.Center(), e.dst.Box.Center()
+		a, b := p.box(e.src).Center(), p.box(e.dst).Center()
 		if b.Y-a.Y > 5 {
 			down++
 		}
@@ -315,7 +322,7 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 	}
 	byFlow := append([]*view.Node(nil), leaves...)
 	sort.SliceStable(byFlow, func(i, j int) bool {
-		a, b := byFlow[i].Box.Center(), byFlow[j].Box.Center()
+		a, b := p.box(byFlow[i]).Center(), p.box(byFlow[j]).Center()
 		if math.Abs(p.flow(a)-p.flow(b)) > 5 {
 			return p.flow(a) < p.flow(b)
 		}
@@ -344,10 +351,10 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 			sort.SliceStable(es, func(i, j int) bool { return docIndex[es[i].dst] < docIndex[es[j].dst] })
 			continue
 		}
-		c := p.cross(n.Box.Center())
+		c := p.cross(p.box(n).Center())
 		main := -1
 		for i, e := range es {
-			if main < 0 || math.Abs(p.cross(e.dst.Box.Center())-c) < math.Abs(p.cross(es[main].dst.Box.Center())-c) {
+			if main < 0 || math.Abs(p.cross(p.box(e.dst).Center())-c) < math.Abs(p.cross(p.box(es[main].dst).Center())-c) {
 				main = i
 			}
 		}
@@ -355,7 +362,7 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 			m := es[main]
 			rest := append(append([]*edge(nil), es[:main]...), es[main+1:]...)
 			sort.SliceStable(rest, func(i, j int) bool {
-				return p.cross(rest[i].dst.Box.Center()) < p.cross(rest[j].dst.Box.Center())
+				return p.cross(p.box(rest[i].dst).Center()) < p.cross(p.box(rest[j].dst).Center())
 			})
 			outs[n] = append(rest, m)
 		}
@@ -413,7 +420,7 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 				if m == n || !wired[m] || (sameLane && m.Parent != n.Parent) {
 					continue
 				}
-				if d := n.Box.Gap(m.Box); d < bd {
+				if d := p.box(n).Gap(p.box(m)); d < bd {
 					best, bd = m, d
 				}
 			}
@@ -438,7 +445,7 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 	emit = func(n *view.Node) {
 		written[n] = true
 		p.add(model.Row{ID: ids[n], Type: elementType(n, ins[n], outs[n]), Parent: laneIDs[n.Parent], Lines: lines(n.Text),
-			Size: fixedSize(n), FontScale: fontScale(n.Style)})
+			Size: fixedSize(n, p.box(n)), FontScale: fontScale(n.Style)})
 		for _, a := range attached[n] {
 			typ := "text"
 			if isDB(a) {
@@ -447,7 +454,7 @@ func (p *Plan) write(leaves []*view.Node, edges []*edge, wired map[*view.Node]bo
 			written[a] = true
 			p.add(model.Row{ID: ids[a], Type: typ, Parent: laneIDs[a.Parent], Lines: lines(a.Text),
 				Meta: map[string]string{"attach": ids[n]}, MetaKeys: []string{"attach"},
-				Size: fixedSize(a), FontScale: fontScale(a.Style)})
+				Size: fixedSize(a, p.box(a)), FontScale: fontScale(a.Style)})
 		}
 		for _, e := range outs[n] {
 			eid++
@@ -511,7 +518,7 @@ func lines(s string) []string {
 // text: images, icons from stencil libraries, and shapes whose label sits
 // outside them. A label below or above the shape is included, so the engine
 // keeps wires and neighbors clear of it.
-func fixedSize(n *view.Node) [2]float64 {
+func fixedSize(n *view.Node, box geom.Rect) [2]float64 {
 	st := n.Style
 	keep := n.Text == "" || n.Shape == "image" || n.Shape == "umlActor" || st.Value("image", "") != "" ||
 		n.Shape == "startState" || n.Shape == "endState" ||
@@ -521,7 +528,7 @@ func fixedSize(n *view.Node) [2]float64 {
 		return [2]float64{}
 	}
 	lw, lh := outsideLabel(n)
-	return [2]float64{math.Max(n.Box.W, lw), n.Box.H + lh}
+	return [2]float64{math.Max(box.W, lw), box.H + lh}
 }
 
 // outsideLabel returns the size of a label drawn below or above its shape,
@@ -600,7 +607,7 @@ func (p *Plan) Lay(tm *text.Measure) (layout.Result, error) {
 
 // Apply writes an engine result into the working copy, keeping the diagram's
 // top-left corner where it was.
-func (p *Plan) Apply(d *tidy.Diagram, r layout.Result, sd *segment.Diagram) {
+func (p *Plan) Apply(d *tidy.Diagram, r layout.Result) {
 	var origin geom.Point
 	switch {
 	case p.pool != nil:
@@ -612,7 +619,7 @@ func (p *Plan) Apply(d *tidy.Diagram, r layout.Result, sd *segment.Diagram) {
 		}
 		origin = geom.Point{X: b.X, Y: b.Y - float64(r.PoolHeader)}
 	default:
-		b := sd.Bounds()
+		b := d.Seg.Bounds()
 		minX, minY := math.Inf(1), math.Inf(1)
 		for _, it := range r.Items {
 			minX, minY = math.Min(minX, it.X), math.Min(minY, it.Y)
@@ -655,7 +662,7 @@ func (p *Plan) Apply(d *tidy.Diagram, r layout.Result, sd *segment.Diagram) {
 		o := at(it.X, it.Y)
 		n.Box = shapePart(v, geom.Rect{X: o.X, Y: o.Y, W: it.W, H: it.H})
 		boxes[it.ID] = geom.Rect{X: o.X, Y: o.Y, W: it.W, H: it.H}
-		if v.Style.Value("html", "0") == "1" && v.Style.Value("whiteSpace", "") != "wrap" && fixedSize(v) == [2]float64{} {
+		if v.Style.Value("html", "0") == "1" && v.Style.Value("whiteSpace", "") != "wrap" && fixedSize(v, v.Box) == [2]float64{} {
 			n.SetStyle = map[string]string{"whiteSpace": "wrap"}
 		}
 	}
@@ -755,26 +762,24 @@ func offOutline(s layout.Shape, frac [2]float64) bool {
 // back as a slightly different table; settling on a layout that reads back as
 // its own table means tidying the output again changes nothing. When no such
 // layout turns up within a few rounds, the best-scoring one is kept.
-func Run(d *tidy.Diagram, sd *segment.Diagram, withLanes bool, tm *text.Measure) (*Plan, error) {
+func Run(d *tidy.Diagram, withLanes bool, tm *text.Measure) (*Plan, error) {
 	type round struct {
 		plan  *Plan
 		snap  tidy.Snapshot
 		score float64
 	}
 	var rounds []round
-	cur := sd
-	var back map[*view.Node]*view.Node
-	var wback map[*view.Wire]*view.Wire
+	// The first round reads the drawing; later ones read the working copy.
+	box := func(n *view.Node) geom.Rect { return n.Box }
 	var prevKey string
 	for i := 0; i < 4; i++ {
-		plan, err := Build(cur, withLanes)
+		plan, err := build(d.Seg, withLanes, box)
 		if err != nil {
 			if i == 0 {
 				return nil, err
 			}
 			break
 		}
-		plan.remap(back, wback)
 		key := plan.key()
 		if i > 0 && key == prevKey {
 			// The last layout reads back as the table it came from.
@@ -790,9 +795,14 @@ func Run(d *tidy.Diagram, sd *segment.Diagram, withLanes bool, tm *text.Measure)
 			}
 			break
 		}
-		plan.Apply(d, r, sd)
+		plan.Apply(d, r)
 		rounds = append(rounds, round{plan, d.Save(), tidy.DefectScore(d.Measure())})
-		cur, back, wback = readBack(sd, d)
+		box = func(n *view.Node) geom.Rect {
+			if w := d.NodeFor(n); w != nil {
+				return w.Box
+			}
+			return n.Box
+		}
 	}
 	best := rounds[0]
 	for _, r := range rounds[1:] {
@@ -812,70 +822,4 @@ func (p *Plan) key() string {
 		fmt.Fprintf(&b, "%s|%s|%s|%v|%v;", r.ID, r.Type, r.Parent, r.Meta, r.Lines)
 	}
 	return b.String()
-}
-
-// remap points a plan built from a read-back copy at the original nodes and
-// wires, which the working copy knows.
-func (p *Plan) remap(nodes map[*view.Node]*view.Node, wires map[*view.Wire]*view.Wire) {
-	if nodes == nil {
-		return
-	}
-	for id, n := range p.nodes {
-		p.nodes[id] = nodes[n]
-	}
-	for id, n := range p.lanes {
-		p.lanes[id] = nodes[n]
-	}
-	for i, n := range p.laneOrder {
-		p.laneOrder[i] = nodes[n]
-	}
-	if p.pool != nil {
-		p.pool = nodes[p.pool]
-	}
-	for _, e := range p.edges {
-		e.w, e.src, e.dst = wires[e.w], nodes[e.src], nodes[e.dst]
-	}
-}
-
-// readBack copies a segmented diagram with the shapes where the working copy
-// now has them, so it can be read as a Flow Table again. It also returns the
-// way from each copy back to its original.
-func readBack(sd *segment.Diagram, d *tidy.Diagram) (*segment.Diagram, map[*view.Node]*view.Node, map[*view.Wire]*view.Wire) {
-	copies := map[*view.Node]*view.Node{}
-	for _, n := range sd.Nodes {
-		c := *n
-		if w := d.NodeFor(n); w != nil {
-			c.Box = w.Box
-		}
-		c.Children = nil
-		copies[n] = &c
-	}
-	out := &segment.Diagram{Page: sd.Page, Index: sd.Index, Name: sd.Name}
-	back := map[*view.Node]*view.Node{}
-	wback := map[*view.Wire]*view.Wire{}
-	for _, n := range sd.Nodes {
-		c := copies[n]
-		back[c] = n
-		if n.Parent != nil {
-			c.Parent = copies[n.Parent]
-		}
-		for _, ch := range n.Children {
-			if cc := copies[ch]; cc != nil {
-				c.Children = append(c.Children, cc)
-			}
-		}
-		out.Nodes = append(out.Nodes, c)
-	}
-	for _, w := range sd.Wires {
-		c := *w
-		if w.Src != nil {
-			c.Src = copies[w.Src]
-		}
-		if w.Dst != nil {
-			c.Dst = copies[w.Dst]
-		}
-		out.Wires = append(out.Wires, &c)
-		wback[&c] = w
-	}
-	return out, back, wback
 }

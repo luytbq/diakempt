@@ -267,7 +267,7 @@ func attempts(kind string, lv Level, opt Options, tm *text.Measure) []attempt {
 			if free {
 				withLanes = hasLanes(w.Seg)
 			}
-			plan, err := relayout.Run(w, w.Seg, withLanes, tm)
+			plan, err := relayout.Run(w, withLanes, tm)
 			if err != nil {
 				return "", err
 			}
