@@ -403,6 +403,16 @@ another wire gets a new route, kept only if the diagram scores better:
 
 Passes repeat until no wire changes.
 
+### wirestyle (aggressive)
+
+A straight wire (no edge style, not curved) that still crosses a shape or runs
+on top of another wire after reroute turns orthogonal: edgeStyle is set to
+orthogonalEdgeStyle and the wire gets a right-angle route through fixed ports,
+kept only if the diagram scores better. Each change is reported as "made wire
+ID orthogonal". It also runs after a kind layout or relayout accepted at
+aggressive. Curved and orthogonal wires keep their style, and safe and normal
+keep every wire's style (docs/adr/0005).
+
 ### labels (safe)
 
 A free text that overlaps a shape or another label moves to the nearest clear

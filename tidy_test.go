@@ -525,7 +525,7 @@ func settleGuardDiagram() *tidy.Diagram {
 }
 
 // TestSettleLabelsKeepsTheLayoutWhenLabelsMakesItWorse: Labels minimizes each
-// label's own hits, so a move can raise the measured defects; settleLabels must
+// label's own hits, so a move can raise the measured defects; settle must
 // then put the layout's geometry back and drop the labels entries.
 func TestSettleLabelsKeepsTheLayoutWhenLabelsMakesItWorse(t *testing.T) {
 	d := settleGuardDiagram()
@@ -533,7 +533,7 @@ func TestSettleLabelsKeepsTheLayoutWhenLabelsMakesItWorse(t *testing.T) {
 	if laid.LabelOverlaps != 0 {
 		t.Fatalf("laid result has %d label overlaps, want 0", laid.LabelOverlaps)
 	}
-	after, log := settleLabels(d, laid, Safe, Options{}, "seqlayout")
+	after, log := settle(d, laid, Safe, Options{}, "seqlayout")
 	if after.LabelOverlaps != laid.LabelOverlaps || after.Score != laid.Score {
 		t.Errorf("kept result %d label overlaps, score %.2f; want %d, %.2f",
 			after.LabelOverlaps, after.Score, laid.LabelOverlaps, laid.Score)

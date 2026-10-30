@@ -55,6 +55,7 @@ var Operations = []Operation{
 	{"separate", Safe, "push overlapping nodes apart"},
 	{"containers", Safe, "grow containers to fit their children"},
 	{"reroute", Safe, "reroute wires that cross a node or run on top of another wire"},
+	{"wirestyle", Aggressive, "turn a straight wire that rerouting cannot clear into an orthogonal one"},
 	{"labels", Safe, "move overlapping labels apart"},
 	{"align", Normal, "line up nodes that are almost aligned"},
 	{"resize", Normal, "resize nodes to fit their text"},

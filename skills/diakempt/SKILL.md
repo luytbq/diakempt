@@ -148,6 +148,11 @@ What the report says, and what to do:
   a single pass stayed within. Its "worse:" line names the defect score before
   and after, or the area and wire length when only those grew. Read the
   report rather than treating it as a crash.
+- "made wire ... orthogonal" (wirestyle, aggressive only): a straight arrow
+  still crossed a shape or another arrow after rerouting, so it was given a
+  right-angle route and edgeStyle=orthogonalEdgeStyle. Tell the user its style
+  changed; if they want straight arrows kept, rerun with --no-wirestyle or a
+  lower level.
 - A result the user dislikes: try a lower level, switch single operations off
   (--no-NAME), or adjust a setting; the flags are in features.md.
 

@@ -1,6 +1,6 @@
 # ADR-0003: Three levels decide how far a layout may change
 
-- Status: accepted
+- Status: accepted; keeping wire style at aggressive is superseded by ADR-0005
 - Date: 2026-10-02
 
 ## Context

@@ -165,7 +165,7 @@ The level sets how far diakempt may change the user's layout.
 |---|---|
 | safe | snap wire ends, separate overlapping nodes, separate overlapping labels, reroute broken wires (through a node or on top of another wire), grow containers to fit their children |
 | normal (default) | safe, plus: align nearly aligned nodes, resize nodes to fit their text, even out spacing, give nodes of the same style the same size, remove excess empty space, snap to a grid |
-| aggressive | normalize, then free placement: move, reorder, change the overall direction, few constraints |
+| aggressive | normalize, then free placement: move, reorder, change the overall direction, few constraints; turn straight wires that rerouting cannot clear orthogonal |
 
 Each operation can be switched on or off on its own, overriding the level, for
 example --level normal --no-resize.
@@ -179,13 +179,15 @@ Invariants per level:
 - All levels keep: containment (a node stays in its container), connectivity (no
   wire added or removed, no source or target changed, except snapped ends),
   styles, text, wire style (straight, curved or orthogonal), decoration.
-  At aggressive, normalize may change structure as listed above.
+  At aggressive, normalize may change structure as listed above, and a straight
+  wire that rerouting cannot clear may turn orthogonal (docs/adr/0005).
 - safe and normal also keep relative order: if A is left of B, or above B, it stays
   so. This is what separates tidying from relayout.
 - aggressive may break relative order.
 
-A broken straight wire is fixed by adding waypoints around the obstacle, never by
-switching it to orthogonal.
+A broken straight wire is fixed by adding waypoints around the obstacle. Only at
+aggressive, and only when no such route scores better, it may switch to
+orthogonal.
 
 Kinds with their own optimizer (flowchart, swimlane) are fully laid out by the
 engine at every level, because the engine understands what a correct layout is for
@@ -410,7 +412,6 @@ Each step ends with a tool that runs.
 
 Postponed on purpose:
 
-- changing wire style (for example straight to orthogonal) as an optimization;
 - a configuration file in the project folder, for example .diakempt.yaml; v1 uses
   flags only;
 - .drawio.svg and .drawio.png input and output, which needs the drawio CLI to

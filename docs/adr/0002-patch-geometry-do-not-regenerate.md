@@ -1,6 +1,7 @@
 # ADR-0002: Patch geometry into the original file instead of regenerating it
 
-- Status: accepted
+- Status: accepted; the restyling consequence is superseded at the aggressive
+  level by ADR-0005
 - Date: 2026-10-02
 
 ## Context

@@ -32,8 +32,8 @@ tools.
 ## Correctness
 
 - Geometry only: an operation that changes a style, a text value, a property or a
-  connection (other than a snapped wire end, or a reported normalization at the
-  aggressive level) is a bug.
+  connection (other than a snapped wire end, or a reported normalization or
+  wire style change at the aggressive level) is a bug.
 - Never worse: a diagram whose quality score gets worse steps down a level, then
   keeps its original geometry.
 - Real user files never enter the repository. Test files are synthetic; real files

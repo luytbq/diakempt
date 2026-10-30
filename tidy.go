@@ -376,9 +376,7 @@ func (a attempt) try(w *tidy.Diagram, dr *report.Diagram, opt Options) bool {
 	}
 	dr.Details = nil
 	if a.op != "" {
-		// The layout moved the wires the labels sit on, so settle them on the
-		// geometry that is kept.
-		after, log = settleLabels(w, after, a.at, opt, a.op)
+		after, log = settle(w, after, a.at, opt, a.op)
 		dr.Details = []report.Detail{{Op: a.op, Msg: msg}}
 	}
 	dr.Applied, dr.After = string(a.at), after
@@ -387,22 +385,33 @@ func (a attempt) try(w *tidy.Diagram, dr *report.Diagram, opt Options) bool {
 	return true
 }
 
-// settleLabels runs Labels on a layout that was just accepted. Labels
-// minimizes each label's own hits, not the score, so its moves can still raise
-// the measured defects; when they do by the never-worse rule (docs/adr/0004),
-// the geometry and the labels entries go back to the layout's.
-func settleLabels(w *tidy.Diagram, laid report.Metrics, lv Level, opt Options, op string) (report.Metrics, *tidy.Log) {
+// settle finishes a layout that was just accepted. wirestyle turns the
+// straight wires the layout left broken orthogonal, each change scoring
+// better. Then labels moves the labels off the wires and shapes the layout
+// put them on; it minimizes each label's own hits, not the score, so its
+// moves can still raise the measured defects, and when they do by the
+// never-worse rule (docs/adr/0004) they go back.
+func settle(w *tidy.Diagram, laid report.Metrics, lv Level, opt Options, op string) (report.Metrics, *tidy.Log) {
 	log := &tidy.Log{Counts: map[string]int{op: 1}}
+	if opt.enabled("wirestyle", lv) {
+		w.WireStyle(log)
+		laid = w.Measure()
+	}
 	if !opt.enabled("labels", lv) {
 		return laid, log
 	}
 	saved := w.Save()
-	w.Labels(log)
+	moved := &tidy.Log{}
+	w.Labels(moved)
 	if settled := w.Measure(); !worse(settled, laid) {
+		for op, n := range moved.Counts {
+			log.Counts[op] += n
+		}
+		log.Details = append(log.Details, moved.Details...)
 		return settled, log
 	}
 	w.Restore(saved)
-	return laid, &tidy.Log{Counts: map[string]int{op: 1}}
+	return laid, log
 }
 
 // runLevel applies the general operations of one level.
@@ -444,6 +453,9 @@ func runLevel(w *tidy.Diagram, at Level, opt Options, log *tidy.Log) {
 	}
 	if on("reroute") {
 		w.Reroute(log)
+	}
+	if on("wirestyle") {
+		w.WireStyle(log)
 	}
 	if on("labels") {
 		w.Labels(log)
