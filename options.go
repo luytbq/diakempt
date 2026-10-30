@@ -120,6 +120,14 @@ func (o Options) Validate() error {
 			return fmt.Errorf("unknown type %q for diagram %s (want one of %v)", k, ref, Kinds)
 		}
 	}
+	refs := sortedKeys(o.DiagramKinds)
+	for i, a := range refs {
+		for _, b := range refs[i+1:] {
+			if ka, kb := o.DiagramKinds[a], o.DiagramKinds[b]; ka != kb && overlap(a, b) {
+				return fmt.Errorf("diagram %s is given two types: %s (%s) and %s (%s)", a, ka, a, kb, b)
+			}
+		}
+	}
 	for name := range o.Ops {
 		if _, ok := opByName(name); !ok {
 			return fmt.Errorf("unknown operation %q", name)
@@ -154,7 +162,9 @@ func (o Options) kindFor(page, index int, name string) string {
 	return o.Kind
 }
 
-var refPattern = regexp.MustCompile(`^Page-([1-9][0-9]*) #([1-9][0-9]*)(?: (".*"))?$`)
+// refPattern reads an identifier as the report prints it, forgiving the case
+// of "Page" and the spacing, which are easy to get wrong when typing it.
+var refPattern = regexp.MustCompile(`^(?i:page)-([1-9][0-9]*)\s*#([1-9][0-9]*)(?:\s+(".*"))?$`)
 
 // parseRef reads a diagram identifier as the report prints it: one-based page
 // and index, and the quoted name when it has one ("" when the reference
@@ -173,6 +183,14 @@ func parseRef(ref string) (page, index int, name string, ok bool) {
 		}
 	}
 	return page - 1, index - 1, name, true
+}
+
+// overlap reports whether two references can name the same diagram: the
+// same page and index, and not two different names.
+func overlap(a, b string) bool {
+	pa, ia, na, _ := parseRef(a)
+	pb, ib, nb, _ := parseRef(b)
+	return pa == pb && ia == ib && (na == "" || nb == "" || na == nb)
 }
 
 // refMatches reports whether a reference names the diagram at a zero-based

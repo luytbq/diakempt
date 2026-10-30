@@ -13,8 +13,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/luytbq/diakempt"
@@ -53,7 +55,7 @@ func flagSet(cfg *config, stderr io.Writer) (*flag.FlagSet, func() error) {
 	fs := flag.NewFlagSet("diakempt", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	level := fs.String("level", string(diakempt.Normal), "how far the layout may change: safe, normal or aggressive")
-	fs.Var(&typeFlag{&cfg.opt}, "type", "treat every diagram as this kind, or with ID=KIND one diagram, such as 'Page-1 #2=sequence'; repeatable. Kinds: "+strings.Join(diakempt.Kinds, ", "))
+	fs.Var(&typeFlag{&cfg.opt}, "type", "treat every diagram as this kind, or with ID=KIND one diagram, such as 'Page-1 #2 \"Login\"=sequence' (ID as the report prints it; wins over a plain --type); repeatable. Kinds: "+strings.Join(diakempt.Kinds, ", "))
 	fs.StringVar(&cfg.out, "o", "", "output path, or - for stdout (one input file only)")
 	fs.BoolVar(&cfg.inPlace, "in-place", false, "overwrite the input, keeping a numbered .bak copy")
 	fs.BoolVar(&cfg.dryRun, "dry-run", false, "write no file, only print the report")
@@ -175,6 +177,13 @@ func parseArgs(args []string, stderr io.Writer) (config, error) {
 	case cfg.out == "-" && cfg.json:
 		return cfg, errors.New("-o - and --json both write to stdout; use one")
 	}
+	if len(cfg.files) > 1 {
+		for _, ref := range slices.Sorted(maps.Keys(cfg.opt.DiagramKinds)) {
+			if !strings.Contains(ref, `"`) {
+				return cfg, fmt.Errorf("--type '%s=%s' names no diagram, so it would match one in every file; add the name, such as '%s \"Login\"=%s', or pass one file", ref, cfg.opt.DiagramKinds[ref], ref, cfg.opt.DiagramKinds[ref])
+			}
+		}
+	}
 	return cfg, nil
 }
 
@@ -202,8 +211,20 @@ func run(args []string, stdout, stderr io.Writer) int {
 	code := exitOK
 	var results []fileResult
 	strictHit := false
+	// Every file is tidied before any is written, so a --type identifier that
+	// matches no input stops the run with nothing written.
+	var tidied []*tidiedFile
 	for _, name := range cfg.files {
-		fr, ok := processFile(cfg, name, stdout, stderr)
+		tidied = append(tidied, tidyFile(cfg, name, stderr))
+	}
+	if unmatchedTypes(cfg, tidied, stderr) {
+		return exitUsage
+	}
+	for _, tf := range tidied {
+		fr, ok := tf.fr, tf.err == nil
+		if ok {
+			fr, ok = writeResult(cfg, tf, stdout, stderr)
+		}
 		results = append(results, fr)
 		if !ok {
 			code = exitFile
@@ -224,16 +245,27 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return code
 }
 
-func processFile(cfg config, name string, stdout, stderr io.Writer) (fileResult, bool) {
-	fr := fileResult{File: name}
-	fail := func(is issue.Issue) (fileResult, bool) {
-		fr.Error = &is
-		fmt.Fprintf(stderr, "%s: error: %s [%s]\n", name, is.Msg, is.Code)
-		return fr, false
-	}
+// tidiedFile is one input after tidying, before anything is written.
+type tidiedFile struct {
+	fr  fileResult
+	in  []byte
+	res diakempt.Result
+	err error
+}
+
+func failed(fr fileResult, is issue.Issue, stderr io.Writer) fileResult {
+	fr.Error = &is
+	fmt.Fprintf(stderr, "%s: error: %s [%s]\n", fr.File, is.Msg, is.Code)
+	return fr
+}
+
+func tidyFile(cfg config, name string, stderr io.Writer) *tidiedFile {
+	tf := &tidiedFile{fr: fileResult{File: name}}
 	in, err := os.ReadFile(name)
 	if err != nil {
-		return fail(issue.FileError("io.read", "cannot read: %v", err))
+		tf.err = err
+		tf.fr = failed(tf.fr, issue.FileError("io.read", "cannot read: %v", err), stderr)
+		return tf
 	}
 	res, err := diakempt.Tidy(in, cfg.opt)
 	if err != nil {
@@ -241,7 +273,66 @@ func processFile(cfg config, name string, stdout, stderr io.Writer) (fileResult,
 		if !errors.As(err, &is) {
 			is = issue.FileError("internal", "%v", err)
 		}
-		return fail(is)
+		tf.err = err
+		tf.fr = failed(tf.fr, is, stderr)
+		return tf
+	}
+	tf.in, tf.res = in, res
+	return tf
+}
+
+// unmatchedTypes reports each --type identifier that matches a diagram in
+// none of the files it could be checked against, and returns whether there
+// was one. An identifier that matches in some file is meant for that file,
+// so the others drop their type.no_diagram warning about it.
+func unmatchedTypes(cfg config, tidied []*tidiedFile, stderr io.Writer) bool {
+	var ok []*tidiedFile
+	for _, tf := range tidied {
+		if tf.err == nil {
+			ok = append(ok, tf)
+		}
+	}
+	if len(ok) == 0 {
+		return false
+	}
+	bad := false
+	for _, ref := range slices.Sorted(maps.Keys(cfg.opt.DiagramKinds)) {
+		var misses []string
+		for _, tf := range ok {
+			for _, is := range tf.res.Report.Issues {
+				if is.Code == "type.no_diagram" && is.Diagram == ref {
+					misses = append(misses, fmt.Sprintf("%s: %s", tf.fr.File, is.Msg))
+				}
+			}
+		}
+		if len(misses) < len(ok) {
+			continue
+		}
+		bad = true
+		fmt.Fprintf(stderr, "diakempt: --type '%s=%s' matches no diagram; nothing written\n", ref, cfg.opt.DiagramKinds[ref])
+		for _, m := range misses {
+			fmt.Fprintf(stderr, "  %s\n", m)
+		}
+	}
+	if bad {
+		return true
+	}
+	for _, tf := range ok {
+		var keep []issue.Issue
+		for _, is := range tf.res.Report.Issues {
+			if is.Code != "type.no_diagram" {
+				keep = append(keep, is)
+			}
+		}
+		tf.res.Report.Issues = keep
+	}
+	return false
+}
+
+func writeResult(cfg config, tf *tidiedFile, stdout, stderr io.Writer) (fileResult, bool) {
+	fr, name, in, res := tf.fr, tf.fr.File, tf.in, tf.res
+	fail := func(is issue.Issue) (fileResult, bool) {
+		return failed(fr, is, stderr), false
 	}
 	fr.Report = &res.Report
 	note := ""

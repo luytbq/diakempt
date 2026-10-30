@@ -84,11 +84,39 @@ func unmatchedKinds(opt Options, diagrams []report.Diagram) []issue.Issue {
 			}
 		}
 		if !found {
-			out = append(out, issue.New(issue.Warning, "type.no_diagram", -1, nil,
-				"no diagram %s to treat as %s", ref, opt.DiagramKinds[ref]))
+			is := issue.New(issue.Warning, "type.no_diagram", -1, nil,
+				"no diagram %s to treat as %s; %s", ref, opt.DiagramKinds[ref], whatIsThere(ref, diagrams))
+			is.Diagram = ref
+			out = append(out, is)
 		}
 	}
 	return out
+}
+
+// whatIsThere describes the diagrams near a reference that matched none, so
+// the identifier can be corrected without another run.
+func whatIsThere(ref string, diagrams []report.Diagram) string {
+	page, index, _, _ := parseRef(ref)
+	last := 0
+	for _, d := range diagrams {
+		if d.Page != page {
+			continue
+		}
+		if d.Index == index {
+			if d.Name == "" {
+				return fmt.Sprintf("Page-%d #%d has no name", page+1, index+1)
+			}
+			return fmt.Sprintf("Page-%d #%d is %q", page+1, index+1, d.Name)
+		}
+		last = max(last, d.Index+1)
+	}
+	switch last {
+	case 0:
+		return fmt.Sprintf("page %d holds no diagram", page+1)
+	case 1:
+		return fmt.Sprintf("page %d has only #1", page+1)
+	}
+	return fmt.Sprintf("page %d has #1 to #%d", page+1, last)
 }
 
 // maxPasses bounds the passes over one page.

@@ -98,11 +98,16 @@ What the report says, and what to do:
 - Kind detected wrongly and the user does not want a relayout: rerun with
   --type unknown.
 - A page holds diagrams of different kinds and one is detected wrongly: force
-  only that one with --type 'ID=KIND', copying ID from the report, for example
-  --type 'Page-1 #2=sequence'; a plain --type would force every diagram.
-- type.no_diagram warning: an ID given to --type matches no diagram of that
-  file. Diagram indexes count from 1 per page, and a quoted name must match the
-  report exactly; rerun with --dry-run to read the IDs, then fix the flag.
+  only that one with --type 'ID=KIND', copying the ID from the report with its
+  quoted name, for example --type 'Page-1 #2 "Login"=sequence'. Keep the name:
+  the #index is reading order and can change once a layout moves diagrams, and
+  with several input files an ID without a name is refused. A plain --type
+  would force every diagram.
+- "--type '...' matches no diagram; nothing written": the ID matched no diagram
+  in any input. The lines under it say what stands at that place in each file;
+  fix the ID from them (or from a --dry-run report) and rerun.
+- "diagram ... is given two types": two --type IDs name the same diagram with
+  different kinds; keep one.
 - "seqlayout not possible: fewer than two UML lifelines": the diagram mixes
   one UML lifeline with hand-drawn ones; only the general tidy ran. Drawing
   every participant the same way lets seqlayout run.

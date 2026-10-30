@@ -63,7 +63,7 @@ normalized is filled at the aggressive level only, and left out when empty.
 |---|---|
 | --level safe, normal, aggressive | how far the layout may change; default normal |
 | --type flowchart, swimlane, sequence, class, state, er, usecase, communication, package, deployment, unknown | treat every diagram as this kind |
-| --type ID=KIND | treat one diagram as KIND, for example --type 'Page-1 #2=sequence'; repeatable, and wins over a --type for the whole file |
+| --type ID=KIND | treat one diagram as KIND, for example --type 'Page-1 #2 "Login"=sequence'; repeatable, and wins over a --type for the whole file |
 | --with-NAME | run operation NAME whatever the level |
 | --no-NAME | skip operation NAME |
 | --force | keep results that score worse than the original |
@@ -575,10 +575,18 @@ and --type unknown prevents one.
 --type ID=KIND forces the kind of one diagram, for pages that hold diagrams of
 different kinds. ID is the diagram identifier as the report prints it: page and
 index, such as Page-1 #2, optionally followed by the quoted name, such as
-Page-1 #2 "Login", which must then match too. Several diagrams take several
---type flags, and one --type without an ID covers the rest. An ID that matches
-no diagram of a file gives the warning type.no_diagram; a malformed ID or an
-unknown kind is a usage error.
+Page-1 #2 "Login", which must then match too. "Page" may be in any case and
+the spaces may vary. Several diagrams take several --type flags, and one --type
+without an ID covers the rest.
+
+Usage errors (exit 2, nothing written): a malformed ID, an unknown kind, two
+kinds for IDs that can name the same diagram, an ID without a name when there
+is more than one input file, and an ID that matches no diagram in any input
+file; that error lists, per file, what stands at that place, such as
+page 1 has #1 to #4 or Page-1 #2 is "Warehouse". An ID that matches in some of
+several files gives no warning in the others. The Go library reports an ID
+that matches no diagram of a file as the warning type.no_diagram, with the ID
+in the issue's diagram field.
 
 ## Input formats
 

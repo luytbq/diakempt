@@ -125,6 +125,7 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 		{"--type", "class", "--type", "er", "x.drawio"},
 		{"--type", "Page-1 #1=class", "--type", "Page-1 #1=er", "x.drawio"},
 		{"--type", "Page1=class", "x.drawio"},
+		{"--type", "Page-1 #2=class", "--type", `Page-1 #2 "Warehouse"=er`, "x.drawio"},
 		{"-o", "out.drawio", "a.drawio", "b.drawio"},
 		{"-o", "out.drawio", "--in-place", "a.drawio"},
 		{"-o", "-", "--json", "a.drawio"},
@@ -203,13 +204,48 @@ func TestStrictExitsThreeWhenForcedResultHasMoreDefects(t *testing.T) {
 func TestTypeTakesOneKindPerDiagramAndOneForTheFile(t *testing.T) {
 	dir := t.TempDir()
 	in := copyCase(t, dir, "snap.drawio")
-	code, _, stderr := runCLI("--dry-run", "--type", "flowchart", "--type", `Page-1 #3 "Choose"=swimlane`, "--type", "Page-2 #1=class", in)
+	code, _, stderr := runCLI("--dry-run", "--type", "flowchart", "--type", `Page-1 #3 "Choose"=swimlane`, in)
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
-	for _, want := range []string{`Page-1 #3 "Choose": swimlane (forced)`, `Page-1 #1 "Order": flowchart (forced)`, "[type.no_diagram]"} {
+	for _, want := range []string{`Page-1 #3 "Choose": swimlane (forced)`, `Page-1 #1 "Order": flowchart (forced)`} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("report lacks %q:\n%s", want, stderr)
 		}
+	}
+}
+
+func TestTypeMatchingNoDiagramWritesNothing(t *testing.T) {
+	dir := t.TempDir()
+	in := copyCase(t, dir, "snap.drawio")
+	code, _, stderr := runCLI("--type", "Page-1 #9=class", in)
+	if code != exitUsage {
+		t.Errorf("exit %d, want %d", code, exitUsage)
+	}
+	if !strings.Contains(stderr, "page 1 has #1 to #4") {
+		t.Errorf("the error does not say which diagrams there are:\n%s", stderr)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
+		t.Errorf("%d files after a refused run, want the input only", len(entries))
+	}
+}
+
+func TestTypeWithoutANameIsRefusedForSeveralFiles(t *testing.T) {
+	dir := t.TempDir()
+	a, b := copyCase(t, dir, "snap.drawio"), copyCase(t, dir, "basic.drawio")
+	if code, _, _ := runCLI("--dry-run", "--type", "Page-1 #1=class", a, b); code != exitUsage {
+		t.Errorf("exit %d, want %d", code, exitUsage)
+	}
+}
+
+func TestTypeNamedForOneOfSeveralFilesDoesNotWarnInTheOthers(t *testing.T) {
+	dir := t.TempDir()
+	a, b := copyCase(t, dir, "snap.drawio"), copyCase(t, dir, "basic.drawio")
+	code, _, stderr := runCLI("--dry-run", "--type", `Page-1 #2 "Warehouse"=class`, a, b)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if strings.Contains(stderr, "type.no_diagram") || !strings.Contains(stderr, `"Warehouse": class (forced)`) {
+		t.Errorf("report:\n%s", stderr)
 	}
 }

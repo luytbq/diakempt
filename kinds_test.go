@@ -2,6 +2,7 @@ package diakempt
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -51,8 +52,30 @@ func TestDiagramKindWithAnotherNameDoesNotMatch(t *testing.T) {
 	if d := res.Report.Diagrams[0]; d.Forced {
 		t.Errorf("%s was forced by a reference naming another diagram", d.ID)
 	}
-	if n := countCode(res.Report.Issues, "type.no_diagram"); n != 2 {
+	want := map[string]string{
+		`Page-1 #1 "Shipping"`: `Page-1 #1 is "Order"`,
+		"Page-3 #1":            "page 3 holds no diagram",
+	}
+	n := 0
+	for _, is := range res.Report.Issues {
+		if is.Code != "type.no_diagram" {
+			continue
+		}
+		n++
+		if hint := want[is.Diagram]; hint == "" || !strings.HasSuffix(is.Msg, hint) {
+			t.Errorf("%s: %q does not end in %q", is.Diagram, is.Msg, hint)
+		}
+	}
+	if n != 2 {
 		t.Errorf("type.no_diagram warnings: %d, want 2", n)
+	}
+}
+
+func TestDiagramReferencesForgiveCaseAndSpacing(t *testing.T) {
+	for _, ref := range []string{"page-1#2", "Page-1  #2", `PAGE-1 #2  "Warehouse"`} {
+		if !refMatches(ref, 0, 1, "Warehouse") {
+			t.Errorf("%q does not name Page-1 #2", ref)
+		}
 	}
 }
 
@@ -70,5 +93,13 @@ func TestValidateRejectsMalformedDiagramReferences(t *testing.T) {
 	}
 	if err := (Options{DiagramKinds: map[string]string{`Page-2 #10 "Log in"`: "sequence"}}).Validate(); err != nil {
 		t.Error(err)
+	}
+	conflict := Options{DiagramKinds: map[string]string{"Page-1 #2": "class", `Page-1 #2 "Warehouse"`: "er"}}
+	if err := conflict.Validate(); err == nil {
+		t.Error("two types for Page-1 #2 accepted")
+	}
+	other := Options{DiagramKinds: map[string]string{`Page-1 #2 "A"`: "class", `Page-1 #2 "B"`: "er"}}
+	if err := other.Validate(); err != nil {
+		t.Errorf("two names at one index are two diagrams, in two files: %v", err)
 	}
 }
