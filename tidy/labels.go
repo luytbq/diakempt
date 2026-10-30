@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/luytbq/diakempt/geom"
+	"github.com/luytbq/diakempt/view"
 )
 
 // Labels moves labels off shapes and off each other. A free text moves to the
@@ -62,16 +63,17 @@ func (d *Diagram) Labels(log *Log) {
 	}
 }
 
-// lifelineLine is the dashed center line of a UML lifeline: from below its head
-// (style "size", default 40) to its bottom, at the box's center. Measure counts
-// a label struck by it as an overlap, so Labels must see the same line.
-func lifelineLine(n *Node) (geom.Segment, bool) {
-	if n.V.Shape != "umlLifeline" {
-		return geom.Segment{}, false
+// LifelineHits counts the UML lifeline center lines that strike a label box.
+// Measure counts each as an overlap, so Labels and the kind layouts that
+// place labels must see the same lines.
+func (d *Diagram) LifelineHits(b geom.Rect) int {
+	hits := 0
+	for _, n := range d.Nodes {
+		if view.IsLifeline(n.V) && view.LifelineLine(n.V.Style, n.Box).CrossesRect(b, 2) {
+			hits++
+		}
 	}
-	head := geom.ParseNumber(n.V.Style.Value("size", "40"))
-	c := n.Box.Center().X
-	return geom.Segment{A: geom.Point{X: c, Y: n.Box.Y + head}, B: geom.Point{X: c, Y: n.Box.Bottom()}}, true
+	return hits
 }
 
 // labelHits counts what a label box overlaps: solid shapes, other labels, free
@@ -92,11 +94,7 @@ func (d *Diagram) labelHits(b geom.Rect, self *Node, wire *Wire, index int) int 
 	// overlay frame drawn over a lifeline is not counted there; moving it off
 	// the line would fix nothing the score sees.
 	if self == nil || !self.Overlay {
-		for _, n := range d.Nodes {
-			if line, ok := lifelineLine(n); ok && line.CrossesRect(b, 2) {
-				hits++
-			}
-		}
+		hits += d.LifelineHits(b)
 	}
 	for _, w := range d.Wires {
 		for i, lb := range w.LabelBoxes() {

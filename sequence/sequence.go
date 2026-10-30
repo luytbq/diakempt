@@ -15,6 +15,7 @@ import (
 
 	"github.com/luytbq/diakempt/geom"
 	"github.com/luytbq/diakempt/tidy"
+	"github.com/luytbq/diakempt/view"
 )
 
 // Spacing, in pixels.
@@ -82,7 +83,7 @@ type frame struct {
 func Layout(d *tidy.Diagram) error {
 	var lifelines []*tidy.Node
 	for _, n := range d.Nodes {
-		if n.V.Shape == "umlLifeline" {
+		if view.IsLifeline(n.V) {
 			lifelines = append(lifelines, n)
 		}
 	}
@@ -93,7 +94,7 @@ func Layout(d *tidy.Diagram) error {
 		return errors.New("fewer than two UML lifelines")
 	}
 	for _, n := range d.Nodes {
-		if n.Container && n.V.Shape != "umlLifeline" {
+		if n.Container && !view.IsLifeline(n.V) {
 			return fmt.Errorf("container %s is not a lifeline", n.V.ID)
 		}
 	}
@@ -119,7 +120,7 @@ func Layout(d *tidy.Diagram) error {
 			return nil, nil
 		}
 		for _, l := range lifelines {
-			if math.Abs(pt.X-l.Box.Center().X) <= endTolerance && pt.Y >= l.Box.Y && pt.Y <= l.Box.Bottom() {
+			if view.OnLifeline(l.V, *pt) {
 				return l, nil
 			}
 		}
@@ -188,7 +189,7 @@ func Layout(d *tidy.Diagram) error {
 	top, head := math.Inf(1), 0.0
 	for _, l := range lifelines {
 		top = math.Min(top, l.Box.Y)
-		head = math.Max(head, geom.ParseNumber(l.V.Style.Value("size", "40")))
+		head = math.Max(head, view.LifelineHead(l.V.Style))
 	}
 	step := float64(minRow)
 	for _, it := range items {
@@ -478,12 +479,12 @@ func placeGates(msgs []*message, lifelines []*tidy.Node, origCenter map[*tidy.No
 	}
 }
 
+// lifeline returns the UML lifeline a node is or sits on, or nil.
 func lifeline(n *tidy.Node) *tidy.Node {
-	for k := 0; n != nil && k < 64; k++ {
-		if n.V.Shape == "umlLifeline" {
+	for ; n != nil; n = n.Parent {
+		if view.IsLifeline(n.V) {
 			return n
 		}
-		n = n.Parent
 	}
 	return nil
 }
@@ -708,7 +709,7 @@ func placeOthers(d *tidy.Diagram, lifelines []*tidy.Node, msgs []*message, origC
 		return best
 	}
 	for _, n := range d.Nodes {
-		if n.V.Shape == "umlLifeline" || lifeline(n.Parent) != nil || n.Overlay || dots[n] {
+		if view.IsLifeline(n.V) || lifeline(n.Parent) != nil || n.Overlay || dots[n] {
 			continue
 		}
 		l := nearest(n.Box.Center().X)
@@ -815,7 +816,7 @@ func placeMessageLabels(d *tidy.Diagram, msgs []*message, lifelines []*tidy.Node
 			continue
 		}
 		boxes := m.w.LabelBoxes()
-		if len(boxes) == 0 || !labelStruck(boxes[0], d, lifelines) {
+		if len(boxes) == 0 || !labelStruck(boxes[0], d) {
 			continue
 		}
 		if m.self {
@@ -864,13 +865,9 @@ func placeMessageLabels(d *tidy.Diagram, msgs []*message, lifelines []*tidy.Node
 
 // labelStruck reports whether a label box would count as struck by a lifeline's
 // center line or an activation bar, the way Measure counts them.
-func labelStruck(b geom.Rect, d *tidy.Diagram, lifelines []*tidy.Node) bool {
-	for _, l := range lifelines {
-		head := geom.ParseNumber(l.V.Style.Value("size", "40"))
-		line := geom.Segment{A: geom.Point{X: l.Box.Center().X, Y: l.Box.Y + head}, B: geom.Point{X: l.Box.Center().X, Y: l.Box.Bottom()}}
-		if line.CrossesRect(b, 2) {
-			return true
-		}
+func labelStruck(b geom.Rect, d *tidy.Diagram) bool {
+	if d.LifelineHits(b) > 0 {
+		return true
 	}
 	for _, n := range d.Nodes {
 		if n.Container || n.Text || n.Overlay || lifeline(n.Parent) == nil {

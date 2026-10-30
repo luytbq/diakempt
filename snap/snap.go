@@ -206,7 +206,7 @@ func onLifeline(v *view.View, w *view.Wire, pt geom.Point) bool {
 // on the outline of a frame.
 func onFrameEdge(v *view.View, pt geom.Point) bool {
 	for _, n := range v.Nodes {
-		if segment.OnUMLLifeline(n, pt) {
+		if view.OnLifeline(n, pt) {
 			return true
 		}
 		if n.Overlay && n.Box.DistToOutline(pt) <= onLifelineDistance {

@@ -98,16 +98,8 @@ func (d *Diagram) Measure() report.Metrics {
 	}
 	// A label struck through by a UML lifeline's dashed center line is as hard
 	// to read as one over a shape.
-	for _, n := range d.Nodes {
-		line, ok := lifelineLine(n)
-		if !ok {
-			continue
-		}
-		for _, l := range labels {
-			if line.CrossesRect(l, 2) {
-				m.LabelOverlaps++
-			}
-		}
+	for _, l := range labels {
+		m.LabelOverlaps += d.LifelineHits(l)
 	}
 	for i := 0; i < len(d.Wires); i++ {
 		for j := i + 1; j < len(d.Wires); j++ {

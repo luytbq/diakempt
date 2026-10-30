@@ -127,7 +127,7 @@ func Split(v *view.View) Page {
 					uf.join(widx[w], idx[n])
 					wired[n] = true
 				}
-				if OnUMLLifeline(n, pt) {
+				if view.OnLifeline(n, pt) {
 					uf.join(widx[w], idx[n])
 					wired[n] = true
 				}
@@ -180,7 +180,7 @@ func Split(v *view.View) Page {
 			}
 		}
 		for _, l := range v.Nodes {
-			if c := l.Box.Center().X; l.Shape == "umlLifeline" && c > n.Box.X && c < n.Box.Right() &&
+			if c := l.Box.Center().X; view.IsLifeline(l) && c > n.Box.X && c < n.Box.Right() &&
 				n.Box.Y < l.Box.Bottom() && n.Box.Bottom() > l.Box.Y {
 				uf.join(idx[n], idx[l])
 			}
@@ -241,18 +241,6 @@ func Split(v *view.View) Page {
 	}
 	sortNodes(out.Decoration, idx)
 	return out
-}
-
-// LifelineReach is how far, in pixels, a free message end may be from a
-// lifeline's center line and still be read as on it.
-const LifelineReach = 6
-
-// OnUMLLifeline reports whether a point lies on the dashed center line of a
-// UML lifeline: within LifelineReach of its center x, inside its height.
-// Messages drawn with free ends between lifelines end there.
-func OnUMLLifeline(n *view.Node, pt geom.Point) bool {
-	return n.Shape == "umlLifeline" && math.Abs(pt.X-n.Box.Center().X) <= LifelineReach &&
-		pt.Y >= n.Box.Y && pt.Y <= n.Box.Bottom()
 }
 
 // MinLifeline is the shortest line, in pixels, read as a hand-drawn lifeline.

@@ -183,7 +183,7 @@ func measure(d *segment.Diagram) *features {
 			f.others++
 		}
 		switch {
-		case n.Shape == "umlLifeline":
+		case view.IsLifeline(n):
 			f.lifelines++
 		case n.Shape == "startState":
 			f.starts++
@@ -785,7 +785,7 @@ func sequenceShape(d *segment.Diagram) (lifelines, messages int) {
 func umlMessages(d *segment.Diagram) int {
 	var lifelines []*view.Node
 	for _, n := range d.Nodes {
-		if n.Shape == "umlLifeline" {
+		if view.IsLifeline(n) {
 			lifelines = append(lifelines, n)
 		}
 	}
@@ -795,14 +795,14 @@ func umlMessages(d *segment.Diagram) int {
 			n = w.Src
 		}
 		if n != nil {
-			return Lifeline(n) != nil
+			return view.LifelineOf(n) != nil
 		}
 		pt, ok := w.End(source)
 		if !ok {
 			return false
 		}
 		for _, l := range lifelines {
-			if segment.OnUMLLifeline(l, pt) {
+			if view.OnLifeline(l, pt) {
 				return true
 			}
 		}
@@ -815,17 +815,6 @@ func umlMessages(d *segment.Diagram) int {
 		}
 	}
 	return n
-}
-
-// Lifeline returns the UML lifeline a node is or sits on, or nil.
-func Lifeline(n *view.Node) *view.Node {
-	for k := 0; n != nil && k < 64; k++ {
-		if n.Shape == "umlLifeline" {
-			return n
-		}
-		n = n.Parent
-	}
-	return nil
 }
 
 func dedupe(s []string) []string {
