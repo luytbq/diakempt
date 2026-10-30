@@ -789,9 +789,7 @@ func routeMessages(msgs []*message, step float64) {
 		if w.Dst == nil {
 			w.DstPoint = &geom.Point{X: dx, Y: y1}
 		}
-		for _, k := range []string{"exitX", "exitY", "exitDx", "exitDy", "exitPerimeter", "entryX", "entryY", "entryDx", "entryDy", "entryPerimeter"} {
-			w.Style.Del(k)
-		}
+		w.ClearPorts()
 		w.Routed = true
 	}
 }

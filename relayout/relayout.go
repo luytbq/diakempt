@@ -690,8 +690,8 @@ func (p *Plan) Apply(d *tidy.Diagram, r layout.Result, sd *segment.Diagram) {
 			srcID, dstID = dstID, srcID
 		}
 		w.Points = pts
-		setAnchor(w, "exit", exit, exitShape, boxes[srcID], d.NodeFor(p.nodes[srcID]))
-		setAnchor(w, "entry", entry, entryShape, boxes[dstID], d.NodeFor(p.nodes[dstID]))
+		setAnchor(w, tidy.Source, exit, exitShape, boxes[srcID], d.NodeFor(p.nodes[srcID]))
+		setAnchor(w, tidy.Target, entry, entryShape, boxes[dstID], d.NodeFor(p.nodes[dstID]))
 		w.Routed = true
 		if pe.Label != nil {
 			w.PlaceLabel(pos, off)
@@ -718,7 +718,7 @@ func shapePart(v *view.Node, box geom.Rect) geom.Rect {
 // to the engine's box; when the drawn shape is only part of that box, the
 // fraction is clamped to the shape and the rest becomes a pixel offset, so the
 // wire still stops outside the label.
-func setAnchor(w *tidy.Wire, prefix string, frac [2]float64, s layout.Shape, box geom.Rect, n *tidy.Node) {
+func setAnchor(w *tidy.Wire, end tidy.End, frac [2]float64, s layout.Shape, box geom.Rect, n *tidy.Node) {
 	dx, dy := 0.0, 0.0
 	if n != nil && box != n.Box && n.Box.W > 0 && n.Box.H > 0 {
 		pt := geom.Point{X: box.X + frac[0]*box.W, Y: box.Y + frac[1]*box.H}
@@ -727,20 +727,12 @@ func setAnchor(w *tidy.Wire, prefix string, frac [2]float64, s layout.Shape, box
 		dx, dy = pt.X-(n.Box.X+fx*n.Box.W), pt.Y-(n.Box.Y+fy*n.Box.H)
 		frac = [2]float64{fx, fy}
 	}
-	w.Style.Set(prefix+"X", geom.Format(frac[0]))
-	w.Style.Set(prefix+"Y", geom.Format(frac[1]))
-	w.Style.Set(prefix+"Dx", geom.Format(dx))
-	w.Style.Set(prefix+"Dy", geom.Format(dy))
 	// A port off the midpoint of a diamond or ellipse side is computed on the
 	// outline and rounded, which can leave it a hair inside the shape; draw.io
 	// would project it back along a ray from the center and add a jog, so it is
-	// told to use the point as given.
-	// draw.io applies the pixel offset only to a port taken as given.
-	if offOutline(s, frac) || dx != 0 || dy != 0 {
-		w.Style.Set(prefix+"Perimeter", "0")
-	} else {
-		w.Style.Del(prefix + "Perimeter")
-	}
+	// told to use the point as given. An offset needs the point taken as given
+	// too.
+	w.SetPort(end, tidy.Port{X: frac[0], Y: frac[1], Off: geom.Point{X: dx, Y: dy}, Given: offOutline(s, frac) || dx != 0 || dy != 0})
 }
 
 func offOutline(s layout.Shape, frac [2]float64) bool {

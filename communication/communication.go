@@ -299,17 +299,15 @@ func layout(d *tidy.Diagram, objects bool) error {
 	var detour []*tidy.Wire
 	for _, l := range links {
 		w := l.w
-		for _, k := range []string{"exitX", "exitY", "exitDx", "exitDy", "exitPerimeter", "entryX", "entryY", "entryDx", "entryDy", "entryPerimeter"} {
-			w.Style.Del(k)
-		}
+		w.ClearPorts()
 		w.Routed = true
 		w.Points = nil
 		if l.src == l.dst && w.Src == w.Dst {
 			b := w.Src.Box
 			c := b.Center().X
 			w.Points = []geom.Point{{X: c - loopHalf, Y: b.Y - loopUp}, {X: c + loopHalf, Y: b.Y - loopUp}}
-			port(w, "exit", (c-loopHalf-b.X)/b.W, 0)
-			port(w, "entry", (c+loopHalf-b.X)/b.W, 0)
+			w.SetPort(tidy.Source, tidy.Port{X: (c - loopHalf - b.X) / b.W})
+			w.SetPort(tidy.Target, tidy.Port{X: (c + loopHalf - b.X) / b.W})
 			continue
 		}
 		a, b := col[l.src], col[l.dst]
@@ -318,8 +316,8 @@ func layout(d *tidy.Diagram, objects bool) error {
 			if a > b {
 				srcX, dstX = 0, 1
 			}
-			port(w, "exit", srcX, 0.5)
-			port(w, "entry", dstX, 0.5)
+			w.SetPort(tidy.Source, tidy.Port{X: srcX, Y: 0.5})
+			w.SetPort(tidy.Target, tidy.Port{X: dstX, Y: 0.5})
 		}
 		seg := geom.Segment{A: endPoint(w.Src.Box, a < b), B: endPoint(w.Dst.Box, b < a)}
 		if a == b {
@@ -336,13 +334,6 @@ func layout(d *tidy.Diagram, objects bool) error {
 		d.RouteWire(w)
 	}
 	return nil
-}
-
-func port(w *tidy.Wire, prefix string, x, y float64) {
-	w.Style.Set(prefix+"X", geom.Format(x))
-	w.Style.Set(prefix+"Y", geom.Format(y))
-	w.Style.Set(prefix+"Dx", "0")
-	w.Style.Set(prefix+"Dy", "0")
 }
 
 // endPoint is the middle of a box's right side, or of its left side.

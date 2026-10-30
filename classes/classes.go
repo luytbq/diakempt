@@ -665,25 +665,18 @@ func route(layers [][]*tidy.Node, links []*link, rank map[*tidy.Node]int) []*lin
 				pts = nil
 			}
 			w := l.w
-			upperEnd, lowerEnd := "exit", "entry"
+			upperEnd, lowerEnd := tidy.Source, tidy.Target
 			if w.Src != r.upper {
-				upperEnd, lowerEnd = "entry", "exit"
+				upperEnd, lowerEnd = tidy.Target, tidy.Source
 				for i, j := 0, len(pts)-1; i < j; i, j = i+1, j-1 {
 					pts[i], pts[j] = pts[j], pts[i]
 				}
 			}
 			w.Points = pts
-			anchor(w, upperEnd, r.upperFrac, 1)
-			anchor(w, lowerEnd, r.lowerFracs[k], 0)
+			w.SetPort(upperEnd, tidy.Port{X: r.upperFrac, Y: 1})
+			w.SetPort(lowerEnd, tidy.Port{X: r.lowerFracs[k]})
 			w.Routed = true
 		}
 	}
 	return rest
-}
-
-func anchor(w *tidy.Wire, prefix string, fx, fy float64) {
-	w.Style.Set(prefix+"X", geom.Format(fx))
-	w.Style.Set(prefix+"Y", geom.Format(fy))
-	w.Style.Set(prefix+"Dx", "0")
-	w.Style.Set(prefix+"Dy", "0")
 }

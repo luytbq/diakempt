@@ -100,9 +100,7 @@ func (d *Diagram) straighten(log *Log) {
 		snap := d.Save()
 		before := d.Measure().Score
 		w.Points = nil
-		for _, k := range []string{"exitX", "exitY", "exitDx", "exitDy", "entryX", "entryY", "entryDx", "entryDy", "exitPerimeter", "entryPerimeter"} {
-			w.Style.Del(k)
-		}
+		w.ClearPorts()
 		if d.broken(w) || d.Measure().Score > before {
 			d.Restore(snap)
 			continue

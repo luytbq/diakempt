@@ -67,16 +67,7 @@ func transposeWire(w *tidy.Wire) {
 	for i, p := range w.Points {
 		w.Points[i] = geom.Point{X: p.Y, Y: p.X}
 	}
-	for _, end := range []string{"exit", "entry"} {
-		for _, k := range [][2]string{{"X", "Y"}, {"Dx", "Dy"}} {
-			a, aok := w.Style.Get(end + k[0])
-			b, bok := w.Style.Get(end + k[1])
-			if aok && bok {
-				w.Style.Set(end+k[0], b)
-				w.Style.Set(end+k[1], a)
-			}
-		}
-	}
+	w.TransposePorts()
 }
 
 // classifyER reads a relation's cardinality from its ER arrowheads: the table

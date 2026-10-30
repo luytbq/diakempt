@@ -328,23 +328,18 @@ func route(wires []*tidy.Wire, cases []*tidy.Node, isCase map[*tidy.Node]bool, o
 	}
 	for _, w := range wires {
 		w.Points = nil
-		for _, k := range []string{"exitX", "exitY", "exitDx", "exitDy", "exitPerimeter", "entryX", "entryY", "entryDx", "entryDy", "entryPerimeter"} {
-			w.Style.Del(k)
-		}
+		w.ClearPorts()
 		w.Routed = true
 		for _, e := range []struct {
-			c, o   *tidy.Node
-			prefix string
-		}{{w.Src, w.Dst, "exit"}, {w.Dst, w.Src, "entry"}} {
+			c, o *tidy.Node
+			end  tidy.End
+		}{{w.Src, w.Dst, tidy.Source}, {w.Dst, w.Src, tidy.Target}} {
 			if a := of[e.o]; isCase[e.c] && a != nil {
-				x := "0"
+				x := 0.0
 				if a.right {
-					x = "1"
+					x = 1
 				}
-				w.Style.Set(e.prefix+"X", x)
-				w.Style.Set(e.prefix+"Y", "0.5")
-				w.Style.Set(e.prefix+"Dx", "0")
-				w.Style.Set(e.prefix+"Dy", "0")
+				w.SetPort(e.end, tidy.Port{X: x, Y: 0.5})
 			}
 		}
 	}

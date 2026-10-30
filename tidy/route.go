@@ -179,8 +179,8 @@ func (d *Diagram) routeOrthogonal(w *Wire) bool {
 	full = simplify(full)
 	full = unjog(full, g)
 	w.Points = append([]geom.Point(nil), full[1:len(full)-1]...)
-	setAnchor(w, "exit", bestS.side)
-	setAnchor(w, "entry", bestD.side)
+	setAnchor(w, Source, bestS.side)
+	setAnchor(w, Target, bestD.side)
 	return true
 }
 
@@ -298,14 +298,10 @@ func sign(v float64) float64 {
 	return 0
 }
 
-func setAnchor(w *Wire, prefix string, s *side) {
-	if s == nil {
-		return
+func setAnchor(w *Wire, e End, s *side) {
+	if s != nil {
+		w.SetPort(e, Port{X: s.ax, Y: s.ay})
 	}
-	w.Style.Set(prefix+"X", geom.Format(s.ax))
-	w.Style.Set(prefix+"Y", geom.Format(s.ay))
-	w.Style.Set(prefix+"Dx", "0")
-	w.Style.Set(prefix+"Dy", "0")
 }
 
 // simplify drops repeated points and points in the middle of a straight run.
